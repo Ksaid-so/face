@@ -1,0 +1,174 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  role      UserRole @default(STAFF)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  sales     Sale[]
+  expenses  Expense[]
+  
+  @@map("users")
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  products Product[]
+  
+  @@map("categories")
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  sku         String?  @unique
+  barcode     String?  @unique
+  price       Float
+  cost        Float
+  stock       Int      @default(0)
+  minStock    Int      @default(0)
+  maxStock    Int      @default(100)
+  isActive    Boolean  @default(true)
+  categoryId  String?
+  imageUrl    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  category    Category? @relation(fields: [categoryId], references: [id])
+  saleItems   SaleItem[]
+  alerts      InventoryAlert[]
+  
+  @@map("products")
+}
+
+model Sale {
+  id          String      @id @default(cuid())
+  invoiceNo   String      @unique
+  totalAmount Float
+  discount    Float       @default(0)
+  tax         Float       @default(0)
+  finalAmount Float
+  paymentMethod PaymentMethod
+  status      SaleStatus  @default(COMPLETED)
+  customerId  String?
+  userId      String
+  notes       String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  
+  // Relations
+  user       User        @relation(fields: [userId], references: [id])
+  saleItems  SaleItem[]
+  
+  @@map("sales")
+}
+
+model SaleItem {
+  id         String  @id @default(cuid())
+  saleId     String
+  productId  String
+  quantity   Int
+  unitPrice  Float
+  totalPrice Float
+  createdAt  DateTime @default(now())
+  
+  // Relations
+  sale    Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+  
+  @@map("sale_items")
+}
+
+model InventoryAlert {
+  id          String           @id @default(cuid())
+  productId   String
+  type        AlertType
+  message     String
+  isRead      Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+  
+  // Relations
+  product     Product          @relation(fields: [productId], references: [id])
+  
+  @@map("inventory_alerts")
+}
+
+model Expense {
+  id          String        @id @default(cuid())
+  title       String
+  description String?
+  amount      Float
+  category    ExpenseCategory
+  date        DateTime
+  userId      String
+  receiptUrl  String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  
+  // Relations
+  user        User          @relation(fields: [userId], references: [id])
+  
+  @@map("expenses")
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  STAFF
+}
+
+enum PaymentMethod {
+  CASH
+  CREDIT_CARD
+  DEBIT_CARD
+  MOBILE_PAYMENT
+  BANK_TRANSFER
+}
+
+enum SaleStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+  REFUNDED
+}
+
+enum AlertType {
+  LOW_STOCK
+  OUT_OF_STOCK
+  OVERSTOCK
+}
+
+enum ExpenseCategory {
+  RENT
+  UTILITIES
+  SALARIES
+  SUPPLIES
+  MAINTENANCE
+  MARKETING
+  OTHER
+}
