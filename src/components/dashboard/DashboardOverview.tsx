@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -21,6 +22,7 @@ import type { RootState } from '@/lib/store';
 
 export default function DashboardOverview() {
   const dispatch = useDispatch();
+  const router = useRouter();
   const { user } = useSelector((state: RootState) => state.auth);
   
   // Mock data for now - will be replaced with actual API calls
@@ -88,11 +90,11 @@ export default function DashboardOverview() {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button>
+            <Button onClick={() => router.push('/pos')}>
               <Plus className="h-4 w-4 mr-2" />
               New Sale
             </Button>
-            <Button variant="outline">
+            <Button variant="outline" onClick={() => router.push('/inventory')}>
               <Package className="h-4 w-4 mr-2" />
               Add Product
             </Button>
@@ -141,7 +143,7 @@ export default function DashboardOverview() {
                     </div>
                   </div>
                 ))}
-                <Button variant="outline" className="w-full">
+                <Button variant="outline" className="w-full" onClick={() => router.push('/sales')}>
                   View All Sales
                   <ArrowRight className="h-4 w-4 ml-2" />
                 </Button>
@@ -168,7 +170,7 @@ export default function DashboardOverview() {
                     <Badge variant="destructive">Low Stock</Badge>
                   </div>
                 ))}
-                <Button variant="outline" className="w-full">
+                <Button variant="outline" className="w-full" onClick={() => router.push('/alerts')}>
                   View All Alerts
                   <ArrowRight className="h-4 w-4 ml-2" />
                 </Button>

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -45,12 +46,29 @@ import {
 } from 'lucide-react';
 import { setProducts, setSearchQuery, setFilters } from '@/features/inventory/inventorySlice';
 import type { RootState } from '@/lib/store';
+import { toast } from 'sonner';
 
 export default function InventoryPage() {
   const dispatch = useDispatch();
+  const router = useRouter();
   const { products, searchQuery, filters } = useSelector((state: RootState) => state.inventory);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  
+  // Form state
+  const [formData, setFormData] = useState({
+    name: '',
+    sku: '',
+    barcode: '',
+    price: '',
+    cost: '',
+    stock: '',
+    minStock: '',
+    maxStock: '',
+    category: '',
+    isActive: true
+  });
 
   // Mock data for now
   const mockProducts = [
@@ -127,6 +145,154 @@ export default function InventoryPage() {
     return { status: 'In Stock', variant: 'default' as const };
   };
 
+  // CRUD Functions
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSelectChange = (name: string, value: string) => {
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      sku: '',
+      barcode: '',
+      price: '',
+      cost: '',
+      stock: '',
+      minStock: '',
+      maxStock: '',
+      category: '',
+      isActive: true
+    });
+  };
+
+  const handleAddProduct = () => {
+    if (!formData.name || !formData.price || !formData.stock) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    const newProduct = {
+      id: Date.now().toString(),
+      name: formData.name,
+      sku: formData.sku || `SKU-${Date.now()}`,
+      barcode: formData.barcode || `BAR-${Date.now()}`,
+      price: parseFloat(formData.price),
+      cost: parseFloat(formData.cost) || 0,
+      stock: parseInt(formData.stock),
+      minStock: parseInt(formData.minStock) || 10,
+      maxStock: parseInt(formData.maxStock) || 100,
+      isActive: formData.isActive,
+      category: { name: formData.category || 'Other' },
+    };
+
+    // In a real app, this would be an API call
+    mockProducts.push(newProduct);
+    dispatch(setProducts([...mockProducts]));
+    
+    toast.success('Product added successfully');
+    resetForm();
+    setIsAddDialogOpen(false);
+  };
+
+  const handleEditProduct = (product: any) => {
+    setSelectedProduct(product);
+    setFormData({
+      name: product.name,
+      sku: product.sku,
+      barcode: product.barcode,
+      price: product.price.toString(),
+      cost: product.cost.toString(),
+      stock: product.stock.toString(),
+      minStock: product.minStock.toString(),
+      maxStock: product.maxStock.toString(),
+      category: product.category?.name || '',
+      isActive: product.isActive
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdateProduct = () => {
+    if (!selectedProduct || !formData.name || !formData.price || !formData.stock) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    const updatedProduct = {
+      ...selectedProduct,
+      name: formData.name,
+      sku: formData.sku,
+      barcode: formData.barcode,
+      price: parseFloat(formData.price),
+      cost: parseFloat(formData.cost) || 0,
+      stock: parseInt(formData.stock),
+      minStock: parseInt(formData.minStock) || 10,
+      maxStock: parseInt(formData.maxStock) || 100,
+      isActive: formData.isActive,
+      category: { name: formData.category || 'Other' },
+    };
+
+    const index = mockProducts.findIndex(p => p.id === selectedProduct.id);
+    if (index !== -1) {
+      mockProducts[index] = updatedProduct;
+      dispatch(setProducts([...mockProducts]));
+      
+      toast.success('Product updated successfully');
+      resetForm();
+      setIsEditDialogOpen(false);
+      setSelectedProduct(null);
+    }
+  };
+
+  const handleDeleteProduct = (product: any) => {
+    if (confirm(`Are you sure you want to delete ${product.name}?`)) {
+      const index = mockProducts.findIndex(p => p.id === product.id);
+      if (index !== -1) {
+        mockProducts.splice(index, 1);
+        dispatch(setProducts([...mockProducts]));
+        
+        toast.success('Product deleted successfully');
+      }
+    }
+  };
+
+  const handleExport = () => {
+    // Create CSV content
+    const headers = ['Name', 'SKU', 'Barcode', 'Price', 'Cost', 'Stock', 'Min Stock', 'Max Stock', 'Category', 'Status'];
+    const csvContent = [
+      headers.join(','),
+      ...filteredProducts.map(product => [
+        product.name,
+        product.sku,
+        product.barcode,
+        product.price,
+        product.cost,
+        product.stock,
+        product.minStock,
+        product.maxStock,
+        product.category?.name || '',
+        getStockStatus(product).status
+      ].join(','))
+    ].join('\n');
+
+    // Create and download file
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `inventory-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+    
+    toast.success('Inventory exported successfully');
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -139,7 +305,7 @@ export default function InventoryPage() {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline">
+            <Button variant="outline" onClick={handleExport}>
               <Download className="h-4 w-4 mr-2" />
               Export
             </Button>
@@ -160,58 +326,136 @@ export default function InventoryPage() {
                 <div className="grid gap-4 py-4">
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="name" className="text-right">
-                      Name
+                      Name *
                     </Label>
-                    <Input id="name" className="col-span-3" />
+                    <Input 
+                      id="name" 
+                      name="name"
+                      value={formData.name}
+                      onChange={handleInputChange}
+                      className="col-span-3" 
+                      placeholder="Product name"
+                    />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="sku" className="text-right">
                       SKU
                     </Label>
-                    <Input id="sku" className="col-span-3" />
+                    <Input 
+                      id="sku" 
+                      name="sku"
+                      value={formData.sku}
+                      onChange={handleInputChange}
+                      className="col-span-3" 
+                      placeholder="Auto-generated"
+                    />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="barcode" className="text-right">
                       Barcode
                     </Label>
-                    <Input id="barcode" className="col-span-3" />
+                    <Input 
+                      id="barcode" 
+                      name="barcode"
+                      value={formData.barcode}
+                      onChange={handleInputChange}
+                      className="col-span-3" 
+                      placeholder="Auto-generated"
+                    />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="price" className="text-right">
-                      Price
+                      Price *
                     </Label>
-                    <Input id="price" type="number" className="col-span-3" />
+                    <Input 
+                      id="price" 
+                      name="price"
+                      type="number" 
+                      step="0.01"
+                      value={formData.price}
+                      onChange={handleInputChange}
+                      className="col-span-3" 
+                      placeholder="0.00"
+                    />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="cost" className="text-right">
                       Cost
                     </Label>
-                    <Input id="cost" type="number" className="col-span-3" />
+                    <Input 
+                      id="cost" 
+                      name="cost"
+                      type="number" 
+                      step="0.01"
+                      value={formData.cost}
+                      onChange={handleInputChange}
+                      className="col-span-3" 
+                      placeholder="0.00"
+                    />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="stock" className="text-right">
-                      Stock
+                      Stock *
                     </Label>
-                    <Input id="stock" type="number" className="col-span-3" />
+                    <Input 
+                      id="stock" 
+                      name="stock"
+                      type="number"
+                      value={formData.stock}
+                      onChange={handleInputChange}
+                      className="col-span-3" 
+                      placeholder="0"
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="minStock" className="text-right">
+                      Min Stock
+                    </Label>
+                    <Input 
+                      id="minStock" 
+                      name="minStock"
+                      type="number"
+                      value={formData.minStock}
+                      onChange={handleInputChange}
+                      className="col-span-3" 
+                      placeholder="10"
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="maxStock" className="text-right">
+                      Max Stock
+                    </Label>
+                    <Input 
+                      id="maxStock" 
+                      name="maxStock"
+                      type="number"
+                      value={formData.maxStock}
+                      onChange={handleInputChange}
+                      className="col-span-3" 
+                      placeholder="100"
+                    />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="category" className="text-right">
                       Category
                     </Label>
-                    <Select>
+                    <Select onValueChange={(value) => handleSelectChange('category', value)}>
                       <SelectTrigger className="col-span-3">
                         <SelectValue placeholder="Select category" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="electronics">Electronics</SelectItem>
-                        <SelectItem value="accessories">Accessories</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
+                        <SelectItem value="Electronics">Electronics</SelectItem>
+                        <SelectItem value="Accessories">Accessories</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button type="submit" onClick={() => setIsAddDialogOpen(false)}>
+                  <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" onClick={handleAddProduct}>
                     Save Product
                   </Button>
                 </DialogFooter>
@@ -334,11 +578,11 @@ export default function InventoryPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => setSelectedProduct(product)}>
+                            <DropdownMenuItem onClick={() => handleEditProduct(product)}>
                               <Edit className="mr-2 h-4 w-4" />
                               Edit
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="text-red-600">
+                            <DropdownMenuItem onClick={() => handleDeleteProduct(product)} className="text-red-600">
                               <Trash2 className="mr-2 h-4 w-4" />
                               Delete
                             </DropdownMenuItem>
@@ -352,6 +596,158 @@ export default function InventoryPage() {
             </Table>
           </CardContent>
         </Card>
+
+        {/* Edit Product Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Edit Product</DialogTitle>
+              <DialogDescription>
+                Update product information.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-name" className="text-right">
+                  Name *
+                </Label>
+                <Input 
+                  id="edit-name" 
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  className="col-span-3" 
+                  placeholder="Product name"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-sku" className="text-right">
+                  SKU
+                </Label>
+                <Input 
+                  id="edit-sku" 
+                  name="sku"
+                  value={formData.sku}
+                  onChange={handleInputChange}
+                  className="col-span-3" 
+                  placeholder="SKU"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-barcode" className="text-right">
+                  Barcode
+                </Label>
+                <Input 
+                  id="edit-barcode" 
+                  name="barcode"
+                  value={formData.barcode}
+                  onChange={handleInputChange}
+                  className="col-span-3" 
+                  placeholder="Barcode"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-price" className="text-right">
+                  Price *
+                </Label>
+                <Input 
+                  id="edit-price" 
+                  name="price"
+                  type="number" 
+                  step="0.01"
+                  value={formData.price}
+                  onChange={handleInputChange}
+                  className="col-span-3" 
+                  placeholder="0.00"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-cost" className="text-right">
+                  Cost
+                </Label>
+                <Input 
+                  id="edit-cost" 
+                  name="cost"
+                  type="number" 
+                  step="0.01"
+                  value={formData.cost}
+                  onChange={handleInputChange}
+                  className="col-span-3" 
+                  placeholder="0.00"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-stock" className="text-right">
+                  Stock *
+                </Label>
+                <Input 
+                  id="edit-stock" 
+                  name="stock"
+                  type="number"
+                  value={formData.stock}
+                  onChange={handleInputChange}
+                  className="col-span-3" 
+                  placeholder="0"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-minStock" className="text-right">
+                  Min Stock
+                </Label>
+                <Input 
+                  id="edit-minStock" 
+                  name="minStock"
+                  type="number"
+                  value={formData.minStock}
+                  onChange={handleInputChange}
+                  className="col-span-3" 
+                  placeholder="10"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-maxStock" className="text-right">
+                  Max Stock
+                </Label>
+                <Input 
+                  id="edit-maxStock" 
+                  name="maxStock"
+                  type="number"
+                  value={formData.maxStock}
+                  onChange={handleInputChange}
+                  className="col-span-3" 
+                  placeholder="100"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-category" className="text-right">
+                  Category
+                </Label>
+                <Select onValueChange={(value) => handleSelectChange('category', value)}>
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Electronics">Electronics</SelectItem>
+                    <SelectItem value="Accessories">Accessories</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => {
+                setIsEditDialogOpen(false);
+                resetForm();
+                setSelectedProduct(null);
+              }}>
+                Cancel
+              </Button>
+              <Button type="submit" onClick={handleUpdateProduct}>
+                Update Product
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );

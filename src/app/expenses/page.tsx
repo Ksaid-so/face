@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -46,9 +48,11 @@ import {
   TrendingUp,
   TrendingDown,
   FileText,
-  Upload
+  Upload,
+  Eye
 } from 'lucide-react';
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
+import { toast } from 'sonner';
 
 interface Expense {
   id: string;
@@ -63,14 +67,29 @@ interface Expense {
 }
 
 export default function ExpensesPage() {
+  const router = useRouter();
+  const { user } = useSelector((state: any) => state.auth);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('this-month');
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
 
+  // Form state
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    amount: '',
+    category: 'OTHER' as Expense['category'],
+    date: new Date().toISOString().split('T')[0],
+    receiptUrl: ''
+  });
+
   // Mock expenses data
-  const mockExpenses: Expense[] = [
+  const [expenses, setExpenses] = useState<Expense[]>([
     {
       id: '1',
       title: 'Office Rent',
@@ -138,7 +157,7 @@ export default function ExpensesPage() {
     },
   ];
 
-  const filteredExpenses = mockExpenses.filter(expense => {
+  const filteredExpenses = expenses.filter(expense => {
     const matchesSearch = expense.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          expense.description?.toLowerCase().includes(searchQuery.toLowerCase());
     
@@ -206,11 +225,11 @@ export default function ExpensesPage() {
 
   // Calculate totals
   const totalExpenses = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-  const thisMonthExpenses = mockExpenses
+  const thisMonthExpenses = expenses
     .filter(e => e.date.startsWith('2024-01'))
     .reduce((sum, expense) => sum + expense.amount, 0);
 
-  const categoryTotals = mockExpenses.reduce((acc, expense) => {
+  const categoryTotals = expenses.reduce((acc, expense) => {
     acc[expense.category] = (acc[expense.category] || 0) + expense.amount;
     return acc;
   }, {} as Record<string, number>);
@@ -220,6 +239,140 @@ export default function ExpensesPage() {
     totalFiltered: totalExpenses,
     averageExpense: filteredExpenses.length > 0 ? totalExpenses / filteredExpenses.length : 0,
     expenseCount: filteredExpenses.length,
+  };
+
+  // CRUD Functions
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSelectChange = (name: string, value: string) => {
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const resetForm = () => {
+    setFormData({
+      title: '',
+      description: '',
+      amount: '',
+      category: 'OTHER',
+      date: new Date().toISOString().split('T')[0],
+      receiptUrl: ''
+    });
+  };
+
+  const handleAddExpense = () => {
+    if (!formData.title || !formData.amount || !formData.date) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    const newExpense: Expense = {
+      id: Date.now().toString(),
+      title: formData.title,
+      description: formData.description,
+      amount: parseFloat(formData.amount),
+      category: formData.category,
+      date: formData.date,
+      userName: user?.name || 'Unknown User',
+      receiptUrl: formData.receiptUrl,
+      createdAt: new Date().toISOString(),
+    };
+
+    setMockExpenses(prev => [...prev, newExpense]);
+    toast.success('Expense added successfully');
+    resetForm();
+    setIsAddDialogOpen(false);
+  };
+
+  const handleEditExpense = (expense: Expense) => {
+    setSelectedExpense(expense);
+    setFormData({
+      title: expense.title,
+      description: expense.description || '',
+      amount: expense.amount.toString(),
+      category: expense.category,
+      date: expense.date,
+      receiptUrl: expense.receiptUrl || ''
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdateExpense = () => {
+    if (!selectedExpense || !formData.title || !formData.amount || !formData.date) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    const updatedExpense: Expense = {
+      ...selectedExpense,
+      title: formData.title,
+      description: formData.description,
+      amount: parseFloat(formData.amount),
+      category: formData.category,
+      date: formData.date,
+      receiptUrl: formData.receiptUrl,
+    };
+
+    setMockExpenses(prev => prev.map(exp => exp.id === selectedExpense.id ? updatedExpense : exp));
+    toast.success('Expense updated successfully');
+    resetForm();
+    setIsEditDialogOpen(false);
+    setSelectedExpense(null);
+  };
+
+  const handleDeleteExpense = (expense: Expense) => {
+    if (confirm(`Are you sure you want to delete "${expense.title}"?`)) {
+      setMockExpenses(prev => prev.filter(exp => exp.id !== expense.id));
+      toast.success('Expense deleted successfully');
+    }
+  };
+
+  const handleExport = () => {
+    const headers = ['Title', 'Description', 'Amount', 'Category', 'Date', 'User'];
+    const csvContent = [
+      headers.join(','),
+      ...filteredExpenses.map(expense => [
+        expense.title,
+        expense.description || '',
+        expense.amount,
+        expense.category,
+        expense.date,
+        expense.userName
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `expenses-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+    
+    toast.success('Expenses exported successfully');
+  };
+
+  const handleViewReceipt = (expense: Expense) => {
+    if (expense.receiptUrl) {
+      // In a real app, this would open the receipt
+      toast.info(`Viewing receipt for ${expense.title}`);
+    } else {
+      toast.error('No receipt available for this expense');
+    }
+  };
+
+  const handleUploadReceipt = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // In a real app, this would upload the file
+      const fakeUrl = `/receipts/${file.name}`;
+      setFormData(prev => ({ ...prev, receiptUrl: fakeUrl }));
+      toast.success('Receipt uploaded successfully');
+    }
   };
 
   return (
@@ -237,7 +390,7 @@ export default function ExpensesPage() {
             </div>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline">
+            <Button variant="outline" onClick={handleExport}>
               <Download className="h-4 w-4 mr-2" />
               Export
             </Button>
@@ -258,27 +411,50 @@ export default function ExpensesPage() {
                 <div className="grid gap-4 py-4">
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="title" className="text-right">
-                      Title
+                      Title *
                     </Label>
-                    <Input id="title" className="col-span-3" />
+                    <Input 
+                      id="title" 
+                      name="title"
+                      value={formData.title}
+                      onChange={handleInputChange}
+                      className="col-span-3" 
+                      placeholder="Expense title"
+                    />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="description" className="text-right">
                       Description
                     </Label>
-                    <Input id="description" className="col-span-3" />
+                    <Input 
+                      id="description" 
+                      name="description"
+                      value={formData.description}
+                      onChange={handleInputChange}
+                      className="col-span-3" 
+                      placeholder="Optional description"
+                    />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="amount" className="text-right">
-                      Amount
+                      Amount *
                     </Label>
-                    <Input id="amount" type="number" step="0.01" className="col-span-3" />
+                    <Input 
+                      id="amount" 
+                      name="amount"
+                      type="number" 
+                      step="0.01"
+                      value={formData.amount}
+                      onChange={handleInputChange}
+                      className="col-span-3" 
+                      placeholder="0.00"
+                    />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="category" className="text-right">
                       Category
                     </Label>
-                    <Select>
+                    <Select onValueChange={(value) => handleSelectChange('category', value)}>
                       <SelectTrigger className="col-span-3">
                         <SelectValue placeholder="Select category" />
                       </SelectTrigger>
@@ -295,24 +471,50 @@ export default function ExpensesPage() {
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="date" className="text-right">
-                      Date
+                      Date *
                     </Label>
-                    <Input id="date" type="date" className="col-span-3" />
+                    <Input 
+                      id="date" 
+                      name="date"
+                      type="date"
+                      value={formData.date}
+                      onChange={handleInputChange}
+                      className="col-span-3" 
+                    />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="receipt" className="text-right">
                       Receipt
                     </Label>
                     <div className="col-span-3">
-                      <Button variant="outline" className="w-full">
+                      <input 
+                        type="file" 
+                        id="receipt" 
+                        onChange={handleUploadReceipt}
+                        className="hidden" 
+                        accept="image/*,.pdf"
+                      />
+                      <Button 
+                        variant="outline" 
+                        className="w-full"
+                        onClick={() => document.getElementById('receipt')?.click()}
+                      >
                         <Upload className="h-4 w-4 mr-2" />
-                        Upload Receipt
+                        {formData.receiptUrl ? 'Change Receipt' : 'Upload Receipt'}
                       </Button>
+                      {formData.receiptUrl && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Receipt uploaded: {formData.receiptUrl.split('/').pop()}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button type="submit" onClick={() => setIsAddDialogOpen(false)}>
+                  <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" onClick={handleAddExpense}>
                     Add Expense
                   </Button>
                 </DialogFooter>
@@ -395,7 +597,7 @@ export default function ExpensesPage() {
                         <span className="text-sm font-medium">{category}</span>
                       </div>
                       <Badge variant={getCategoryBadgeVariant(category)}>
-                        {mockExpenses.filter(e => e.category === category).length}
+                        {expenses.filter(e => e.category === category).length}
                       </Badge>
                     </div>
                     <div className="text-lg font-semibold">{formatCurrency(total)}</div>
@@ -501,7 +703,7 @@ export default function ExpensesPage() {
                     <TableCell>{expense.userName}</TableCell>
                     <TableCell>
                       {expense.receiptUrl ? (
-                        <Button variant="ghost" size="sm">
+                        <Button variant="ghost" size="sm" onClick={() => handleViewReceipt(expense)}>
                           <FileText className="h-4 w-4" />
                         </Button>
                       ) : (
@@ -516,21 +718,28 @@ export default function ExpensesPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => {
+                            setSelectedExpense(expense);
+                            setIsViewDialogOpen(true);
+                          }}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            View Details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleEditExpense(expense)}>
                             <Edit className="mr-2 h-4 w-4" />
                             Edit Expense
                           </DropdownMenuItem>
                           {expense.receiptUrl && (
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleViewReceipt(expense)}>
                               <FileText className="mr-2 h-4 w-4" />
                               View Receipt
                             </DropdownMenuItem>
                           )}
-                          <DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleEditExpense(expense)}>
                             <Upload className="mr-2 h-4 w-4" />
                             Upload Receipt
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="text-red-600">
+                          <DropdownMenuItem onClick={() => handleDeleteExpense(expense)} className="text-red-600">
                             <Trash2 className="mr-2 h-4 w-4" />
                             Delete Expense
                           </DropdownMenuItem>
@@ -544,6 +753,193 @@ export default function ExpensesPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Edit Expense Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Edit Expense</DialogTitle>
+            <DialogDescription>
+              Update expense information.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-title" className="text-right">
+                Title *
+              </Label>
+              <Input 
+                id="edit-title" 
+                name="title"
+                value={formData.title}
+                onChange={handleInputChange}
+                className="col-span-3" 
+                placeholder="Expense title"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-description" className="text-right">
+                Description
+              </Label>
+              <Input 
+                id="edit-description" 
+                name="description"
+                value={formData.description}
+                onChange={handleInputChange}
+                className="col-span-3" 
+                placeholder="Optional description"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-amount" className="text-right">
+                Amount *
+              </Label>
+              <Input 
+                id="edit-amount" 
+                name="amount"
+                type="number" 
+                step="0.01"
+                value={formData.amount}
+                onChange={handleInputChange}
+                className="col-span-3" 
+                placeholder="0.00"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-category" className="text-right">
+                Category
+              </Label>
+              <Select onValueChange={(value) => handleSelectChange('category', value)}>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="RENT">Rent</SelectItem>
+                  <SelectItem value="UTILITIES">Utilities</SelectItem>
+                  <SelectItem value="SALARIES">Salaries</SelectItem>
+                  <SelectItem value="SUPPLIES">Supplies</SelectItem>
+                  <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
+                  <SelectItem value="MARKETING">Marketing</SelectItem>
+                  <SelectItem value="OTHER">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-date" className="text-right">
+                Date *
+              </Label>
+              <Input 
+                id="edit-date" 
+                name="date"
+                type="date"
+                value={formData.date}
+                onChange={handleInputChange}
+                className="col-span-3" 
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-receipt" className="text-right">
+                Receipt
+              </Label>
+              <div className="col-span-3">
+                <input 
+                  type="file" 
+                  id="edit-receipt" 
+                  onChange={handleUploadReceipt}
+                  className="hidden" 
+                  accept="image/*,.pdf"
+                />
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => document.getElementById('edit-receipt')?.click()}
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  {formData.receiptUrl ? 'Change Receipt' : 'Upload Receipt'}
+                </Button>
+                {formData.receiptUrl && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Receipt uploaded: {formData.receiptUrl.split('/').pop()}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" onClick={handleUpdateExpense}>
+              Update Expense
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Expense Dialog */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Expense Details</DialogTitle>
+            <DialogDescription>
+              Complete expense information.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedExpense && (
+            <div className="space-y-4">
+              <div>
+                <Label className="text-sm font-medium">Title</Label>
+                <p className="text-sm text-muted-foreground">{selectedExpense.title}</p>
+              </div>
+              {selectedExpense.description && (
+                <div>
+                  <Label className="text-sm font-medium">Description</Label>
+                  <p className="text-sm text-muted-foreground">{selectedExpense.description}</p>
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium">Amount</Label>
+                  <p className="text-sm text-muted-foreground">{formatCurrency(selectedExpense.amount)}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Category</Label>
+                  <p className="text-sm text-muted-foreground">{selectedExpense.category}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium">Date</Label>
+                  <p className="text-sm text-muted-foreground">{formatDate(selectedExpense.date)}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Added By</Label>
+                  <p className="text-sm text-muted-foreground">{selectedExpense.userName}</p>
+                </div>
+              </div>
+              {selectedExpense.receiptUrl && (
+                <div>
+                  <Label className="text-sm font-medium">Receipt</Label>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => handleViewReceipt(selectedExpense)}
+                    className="mt-1"
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    View Receipt
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }
