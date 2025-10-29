@@ -57,6 +57,7 @@ import {
   selectSubtotal,
   selectTotal
 } from '@/features/pos/posSlice';
+import { addSale } from '@/features/sales/salesSlice';
 import type { RootState } from '@/lib/store';
 
 export default function POSPage() {
@@ -139,6 +140,36 @@ export default function POSPage() {
       tax,
       total,
     };
+
+    // Create sale object for Redux store
+    const newSale = {
+      id: Date.now().toString(),
+      invoiceNumber: receiptData.receiptInfo.invoiceNo,
+      date: new Date().toISOString(),
+      customer: customerInfo.name || 'Walk-in Customer',
+      items: items.map(item => ({
+        productId: item.productId,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        totalPrice: item.totalPrice,
+      })),
+      subtotal,
+      tax,
+      discount,
+      total,
+      paymentMethod,
+      status: 'COMPLETED' as const,
+      staff: {
+        name: 'Current User',
+        email: 'user@inventorypro.com'
+      },
+      customerInfo: customerInfo.name || customerInfo.email ? customerInfo : undefined,
+      createdAt: new Date().toISOString(),
+    };
+
+    // Add sale to Redux store
+    dispatch(addSale(newSale));
 
     // Generate and download receipt
     receiptGenerator.downloadReceipt(receiptData);

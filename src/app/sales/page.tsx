@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,10 +44,15 @@ import {
   Calendar,
   User
 } from 'lucide-react';
+import { setSales, updateSaleStatus } from '@/features/sales/salesSlice';
 import type { RootState } from '@/lib/store';
+import { toast } from 'sonner';
 
 export default function SalesPage() {
+  const router = useRouter();
+  const dispatch = useDispatch();
   const { user } = useSelector((state: RootState) => state.auth);
+  const { sales } = useSelector((state: RootState) => state.sales);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSale, setSelectedSale] = useState<any>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
@@ -125,7 +131,10 @@ export default function SalesPage() {
     },
   ];
 
-  const filteredSales = mockSales.filter(sale => {
+  // Use Redux sales if available, otherwise use mock data
+  const displaySales = sales.length > 0 ? sales : mockSales;
+
+  const filteredSales = displaySales.filter(sale => {
     const matchesSearch = sale.invoiceNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          sale.customer.toLowerCase().includes(searchQuery.toLowerCase());
     
@@ -159,6 +168,42 @@ export default function SalesPage() {
     }
   };
 
+  const handleExport = () => {
+    // Create CSV content
+    const headers = ['Invoice #', 'Date', 'Customer', 'Items', 'Total', 'Payment Method', 'Status', 'Staff'];
+    const csvContent = [
+      headers.join(','),
+      ...filteredSales.map(sale => [
+        sale.invoiceNumber,
+        sale.date.toLocaleDateString(),
+        sale.customer,
+        sale.items.length,
+        sale.total,
+        sale.paymentMethod,
+        sale.status,
+        sale.staff.name
+      ].join(','))
+    ].join('\n');
+
+    // Create and download file
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `sales-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+    
+    toast.success('Sales data exported successfully');
+  };
+
+  const handlePrintReceipt = (sale: any) => {
+    // In a real app, this would generate and print a receipt
+    toast.info(`Printing receipt for ${sale.invoiceNumber}`);
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -171,11 +216,11 @@ export default function SalesPage() {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline">
+            <Button variant="outline" onClick={handleExport}>
               <Download className="h-4 w-4 mr-2" />
               Export
             </Button>
-            <Button>
+            <Button onClick={() => router.push('/pos')}>
               <Plus className="h-4 w-4 mr-2" />
               New Sale
             </Button>
@@ -190,7 +235,9 @@ export default function SalesPage() {
               <Receipt className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">$649.06</div>
+              <div className="text-2xl font-bold">
+                ${displaySales.reduce((sum, sale) => sum + sale.total, 0).toFixed(2)}
+              </div>
               <p className="text-xs text-muted-foreground">
                 +20.1% from last month
               </p>
@@ -202,7 +249,7 @@ export default function SalesPage() {
               <Calendar className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{mockSales.length}</div>
+              <div className="text-2xl font-bold">{displaySales.length}</div>
               <p className="text-xs text-muted-foreground">
                 +12.5% from last month
               </p>
@@ -214,7 +261,9 @@ export default function SalesPage() {
               <Receipt className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">$162.27</div>
+              <div className="text-2xl font-bold">
+                ${displaySales.length > 0 ? (displaySales.reduce((sum, sale) => sum + sale.total, 0) / displaySales.length).toFixed(2) : '0.00'}
+              </div>
               <p className="text-xs text-muted-foreground">
                 +5.2% from last month
               </p>
@@ -227,7 +276,7 @@ export default function SalesPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {mockSales.filter(s => s.status === 'PENDING').length}
+                {displaySales.filter(s => s.status === 'PENDING').length}
               </div>
               <p className="text-xs text-muted-foreground">
                 Requires attention
@@ -336,7 +385,7 @@ export default function SalesPage() {
                             <Eye className="mr-2 h-4 w-4" />
                             View Details
                           </DropdownMenuItem>
-                          <DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handlePrintReceipt(sale)}>
                             <Receipt className="mr-2 h-4 w-4" />
                             Print Receipt
                           </DropdownMenuItem>
@@ -415,7 +464,7 @@ export default function SalesPage() {
             <Button variant="outline" onClick={() => setIsDetailDialogOpen(false)}>
               Close
             </Button>
-            <Button>
+            <Button onClick={() => selectedSale && handlePrintReceipt(selectedSale)}>
               <Receipt className="mr-2 h-4 w-4" />
               Print Receipt
             </Button>

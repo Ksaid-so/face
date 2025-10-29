@@ -3,6 +3,7 @@ import { apiSlice } from '@/features/api/apiSlice';
 import authSlice from '@/features/auth/authSlice';
 import inventorySlice from '@/features/inventory/inventorySlice';
 import posSlice from '@/features/pos/posSlice';
+import salesSlice from '@/features/sales/salesSlice';
 
 export const store = configureStore({
   reducer: {
@@ -10,6 +11,7 @@ export const store = configureStore({
     auth: authSlice,
     inventory: inventorySlice,
     pos: posSlice,
+    sales: salesSlice,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware().concat(apiSlice.middleware),
