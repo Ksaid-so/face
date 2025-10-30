@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -55,6 +55,8 @@ export default function InventoryPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [apiProducts, setApiProducts] = useState<any[]>([]);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -70,63 +72,30 @@ export default function InventoryPage() {
     isActive: true
   });
 
-  // Mock data for now
-  const mockProducts = [
-    {
-      id: '1',
-      name: 'Wireless Mouse',
-      sku: 'WM-001',
-      barcode: '1234567890123',
-      price: 29.99,
-      cost: 15.50,
-      stock: 45,
-      minStock: 10,
-      maxStock: 100,
-      isActive: true,
-      category: { name: 'Electronics' },
-    },
-    {
-      id: '2',
-      name: 'USB Cable',
-      sku: 'UC-002',
-      barcode: '1234567890124',
-      price: 12.99,
-      cost: 5.25,
-      stock: 8,
-      minStock: 20,
-      maxStock: 200,
-      isActive: true,
-      category: { name: 'Accessories' },
-    },
-    {
-      id: '3',
-      name: 'Keyboard',
-      sku: 'KB-003',
-      barcode: '1234567890125',
-      price: 79.99,
-      cost: 35.00,
-      stock: 23,
-      minStock: 15,
-      maxStock: 50,
-      isActive: true,
-      category: { name: 'Electronics' },
-    },
-    {
-      id: '4',
-      name: 'Monitor',
-      sku: 'MN-004',
-      barcode: '1234567890126',
-      price: 299.99,
-      cost: 180.00,
-      stock: 12,
-      minStock: 5,
-      maxStock: 25,
-      isActive: true,
-      category: { name: 'Electronics' },
-    },
-  ];
+  // Fetch products from API
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch('/api/products');
+        if (!response.ok) {
+          throw new Error('Failed to fetch products');
+        }
+        const data = await response.json();
+        setApiProducts(data.products);
+        dispatch(setProducts(data.products));
+      } catch (error) {
+        toast.error('Failed to load products');
+        console.error('Error fetching products:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const filteredProducts = mockProducts.filter(product => {
+    fetchProducts();
+  }, [dispatch]);
+
+  const filteredProducts = apiProducts.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          product.sku?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          product.barcode?.includes(searchQuery);
@@ -134,14 +103,24 @@ export default function InventoryPage() {
     const matchesCategory = filters.category === "all" || !filters.category || product.category?.name === filters.category;
     const matchesLowStock = !filters.lowStock || product.stock <= product.minStock;
     const matchesOutOfStock = !filters.outOfStock || product.stock === 0;
-    const matchesActive = !filters.active || product.isActive;
+    const matchesActive = filters.active === false || product.isActive;
+    
+    // Price range filter
+    let matchesPriceRange = true;
+    if (filters.priceRange === '0-50') {
+      matchesPriceRange = product.price <= 50;
+    } else if (filters.priceRange === '50-100') {
+      matchesPriceRange = product.price > 50 && product.price <= 100;
+    } else if (filters.priceRange === '100+') {
+      matchesPriceRange = product.price > 100;
+    }
 
-    return matchesSearch && matchesCategory && matchesLowStock && matchesOutOfStock && matchesActive;
+    return matchesSearch && matchesCategory && matchesLowStock && matchesOutOfStock && matchesActive && matchesPriceRange;
   });
 
   const getStockStatus = (product: any) => {
     if (product.stock === 0) return { status: 'Out of Stock', variant: 'destructive' as const };
-    if (product.stock <= product.minStock) return { status: 'Low Stock', variant: 'warning' as const };
+    if (product.stock <= product.minStock) return { status: 'Low Stock', variant: 'outline' as const };
     return { status: 'In Stock', variant: 'default' as const };
   };
 
@@ -170,7 +149,7 @@ export default function InventoryPage() {
     });
   };
 
-  const handleAddProduct = () => {
+  const handleAddProduct = async () => {
     if (!formData.name || !formData.price || !formData.stock) {
       toast.error('Please fill in all required fields');
       return;
@@ -190,9 +169,38 @@ export default function InventoryPage() {
       category: { name: formData.category || 'Other' },
     };
 
-    // In a real app, this would be an API call
-    mockProducts.push(newProduct);
-    dispatch(setProducts([...mockProducts]));
+    try {
+      const response = await fetch('/api/products', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          sku: formData.sku,
+          barcode: formData.barcode,
+          price: parseFloat(formData.price),
+          cost: parseFloat(formData.cost) || 0,
+        stock: parseInt(formData.stock),
+          minStock: parseInt(formData.minStock) || 10,
+          maxStock: parseInt(formData.maxStock) || 100,
+          isActive: formData.isActive,
+          categoryId: formData.category || null,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to add product');
+      }
+
+      const newProduct = await response.json();
+      setApiProducts(prev => [...prev, newProduct]);
+      dispatch(setProducts([...apiProducts, newProduct]));
+    } catch (error) {
+      toast.error('Failed to add product');
+      console.error('Error adding product:', error);
+      return;
+    }
     
     toast.success('Product added successfully');
     resetForm();
@@ -216,47 +224,74 @@ export default function InventoryPage() {
     setIsEditDialogOpen(true);
   };
 
-  const handleUpdateProduct = () => {
+  const handleUpdateProduct = async () => {
     if (!selectedProduct || !formData.name || !formData.price || !formData.stock) {
       toast.error('Please fill in all required fields');
       return;
     }
 
-    const updatedProduct = {
-      ...selectedProduct,
-      name: formData.name,
-      sku: formData.sku,
-      barcode: formData.barcode,
-      price: parseFloat(formData.price),
-      cost: parseFloat(formData.cost) || 0,
-      stock: parseInt(formData.stock),
-      minStock: parseInt(formData.minStock) || 10,
-      maxStock: parseInt(formData.maxStock) || 100,
-      isActive: formData.isActive,
-      category: { name: formData.category || 'Other' },
-    };
+    try {
+      const response = await fetch(`/api/products/${selectedProduct.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          sku: formData.sku,
+          barcode: formData.barcode,
+          price: parseFloat(formData.price),
+          cost: parseFloat(formData.cost) || 0,
+          stock: parseInt(formData.stock),
+          minStock: parseInt(formData.minStock) || 10,
+          maxStock: parseInt(formData.maxStock) || 100,
+          isActive: formData.isActive,
+          categoryId: formData.category || null,
+        }),
+      });
 
-    const index = mockProducts.findIndex(p => p.id === selectedProduct.id);
-    if (index !== -1) {
-      mockProducts[index] = updatedProduct;
-      dispatch(setProducts([...mockProducts]));
+      if (!response.ok) {
+        throw new Error('Failed to update product');
+      }
+
+      const updatedProduct = await response.json();
+      
+      // Update the local state
+      setApiProducts(prev => prev.map(p => p.id === selectedProduct.id ? updatedProduct : p));
+      dispatch(setProducts(apiProducts.map(p => p.id === selectedProduct.id ? updatedProduct : p)));
       
       toast.success('Product updated successfully');
       resetForm();
       setIsEditDialogOpen(false);
       setSelectedProduct(null);
+    } catch (error) {
+      toast.error('Failed to update product');
+      console.error('Error updating product:', error);
     }
   };
 
-  const handleDeleteProduct = (product: any) => {
-    if (confirm(`Are you sure you want to delete ${product.name}?`)) {
-      const index = mockProducts.findIndex(p => p.id === product.id);
-      if (index !== -1) {
-        mockProducts.splice(index, 1);
-        dispatch(setProducts([...mockProducts]));
-        
-        toast.success('Product deleted successfully');
+  const handleDeleteProduct = async (product: any) => {
+    if (!confirm(`Are you sure you want to delete ${product.name}?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/products/${product.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete product');
       }
+
+      // Update the local state
+      setApiProducts(prev => prev.filter(p => p.id !== product.id));
+      dispatch(setProducts(apiProducts.filter(p => p.id !== product.id)));
+      
+      toast.success('Product deleted successfully');
+    } catch (error) {
+      toast.error('Failed to delete product');
+      console.error('Error deleting product:', error);
     }
   };
 
@@ -309,6 +344,14 @@ export default function InventoryPage() {
               <Download className="h-4 w-4 mr-2" />
               Export
             </Button>
+            <Button variant="outline" onClick={() => router.push('/inventory/import')}>
+              <Download className="h-4 w-4 mr-2" />
+              Import
+            </Button>
+            <Button variant="outline" onClick={() => router.push('/inventory/adjust')}>
+              <Package className="h-4 w-4 mr-2" />
+              Adjust Stock
+            </Button>
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
               <DialogTrigger asChild>
                 <Button>
@@ -354,14 +397,27 @@ export default function InventoryPage() {
                     <Label htmlFor="barcode" className="text-right">
                       Barcode
                     </Label>
-                    <Input 
-                      id="barcode" 
-                      name="barcode"
-                      value={formData.barcode}
-                      onChange={handleInputChange}
-                      className="col-span-3" 
-                      placeholder="Auto-generated"
-                    />
+                    <div className="col-span-3 flex gap-2">
+                      <Input 
+                        id="barcode" 
+                        name="barcode"
+                        value={formData.barcode}
+                        onChange={handleInputChange}
+                        placeholder="Auto-generated"
+                        className="flex-1"
+                      />
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={async () => {
+                          // Generate a random barcode
+                          const newBarcode = Math.floor(Math.random() * 1000000000000).toString().padStart(12, '0');
+                          setFormData(prev => ({ ...prev, barcode: newBarcode }));
+                        }}
+                      >
+                        Generate
+                      </Button>
+                    </div>
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="price" className="text-right">
@@ -450,6 +506,27 @@ export default function InventoryPage() {
                       </SelectContent>
                     </Select>
                   </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="image" className="text-right">
+                      Image
+                    </Label>
+                    <Input 
+                      id="image" 
+                      name="image"
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        // Handle image upload
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          // In a real implementation, you would upload the file to a storage service
+                          // and set the imageUrl in the formData
+                          console.log('Image selected:', file.name);
+                        }
+                      }}
+                      className="col-span-3" 
+                    />
+                  </div>
                 </div>
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
@@ -470,45 +547,78 @@ export default function InventoryPage() {
             <CardTitle>Search & Filter</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex gap-4">
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search products by name, SKU, or barcode..."
-                    value={searchQuery}
-                    onChange={(e) => dispatch(setSearchQuery(e.target.value))}
-                    className="pl-10"
-                  />
+            <div className="space-y-4">
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search products by name, SKU, or barcode..."
+                      value={searchQuery}
+                      onChange={(e) => dispatch(setSearchQuery(e.target.value))}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Select onValueChange={(value) => dispatch(setFilters({ category: value }))}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Categories</SelectItem>
+                      <SelectItem value="Electronics">Electronics</SelectItem>
+                      <SelectItem value="Accessories">Accessories</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant={filters.lowStock ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => dispatch(setFilters({ lowStock: !filters.lowStock }))}
+                  >
+                    <AlertTriangle className="h-4 w-4 mr-2" />
+                    Low Stock
+                  </Button>
+                  <Button
+                    variant={filters.outOfStock ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => dispatch(setFilters({ outOfStock: !filters.outOfStock }))}
+                  >
+                    <Package className="h-4 w-4 mr-2" />
+                    Out of Stock
+                  </Button>
                 </div>
               </div>
-              <div className="flex gap-2">
-                <Select onValueChange={(value) => dispatch(setFilters({ category: value }))}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    <SelectItem value="Electronics">Electronics</SelectItem>
-                    <SelectItem value="Accessories">Accessories</SelectItem>
-                    <SelectItem value="Other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
+              
+              <div className="flex flex-wrap gap-2">
                 <Button
-                  variant={filters.lowStock ? "default" : "outline"}
+                  variant={filters.active === false ? "outline" : "default"}
                   size="sm"
-                  onClick={() => dispatch(setFilters({ lowStock: !filters.lowStock }))}
+                  onClick={() => dispatch(setFilters({ active: filters.active === false ? true : false }))}
                 >
-                  <AlertTriangle className="h-4 w-4 mr-2" />
-                  Low Stock
+                  Active Only
                 </Button>
                 <Button
-                  variant={filters.outOfStock ? "default" : "outline"}
+                  variant={filters.priceRange === '0-50' ? "default" : "outline"}
                   size="sm"
-                  onClick={() => dispatch(setFilters({ outOfStock: !filters.outOfStock }))}
+                  onClick={() => dispatch(setFilters({ priceRange: filters.priceRange === '0-50' ? undefined : '0-50' }))}
                 >
-                  <Package className="h-4 w-4 mr-2" />
-                  Out of Stock
+                  Under $50
+                </Button>
+                <Button
+                  variant={filters.priceRange === '50-100' ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => dispatch(setFilters({ priceRange: filters.priceRange === '50-100' ? undefined : '50-100' }))}
+                >
+                  $50-$100
+                </Button>
+                <Button
+                  variant={filters.priceRange === '100+' ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => dispatch(setFilters({ priceRange: filters.priceRange === '100+' ? undefined : '100+' }))}
+                >
+                  Over $100
                 </Button>
               </div>
             </div>
@@ -637,14 +747,27 @@ export default function InventoryPage() {
                 <Label htmlFor="edit-barcode" className="text-right">
                   Barcode
                 </Label>
-                <Input 
-                  id="edit-barcode" 
-                  name="barcode"
-                  value={formData.barcode}
-                  onChange={handleInputChange}
-                  className="col-span-3" 
-                  placeholder="Barcode"
-                />
+                <div className="col-span-3 flex gap-2">
+                  <Input 
+                    id="edit-barcode" 
+                    name="barcode"
+                    value={formData.barcode}
+                    onChange={handleInputChange}
+                    placeholder="Barcode"
+                    className="flex-1"
+                  />
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={async () => {
+                      // Generate a random barcode
+                      const newBarcode = Math.floor(Math.random() * 1000000000000).toString().padStart(12, '0');
+                      setFormData(prev => ({ ...prev, barcode: newBarcode }));
+                    }}
+                  >
+                    Generate
+                  </Button>
+                </div>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="edit-price" className="text-right">
@@ -733,6 +856,43 @@ export default function InventoryPage() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-image" className="text-right">
+                  Image
+                </Label>
+                <Input 
+                  id="edit-image" 
+                  name="image"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    // Handle image upload
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      // In a real implementation, you would upload the file to a storage service
+                      // and set the imageUrl in the formData
+                      console.log('Image selected:', file.name);
+                    }
+                  }}
+                  className="col-span-3" 
+                />
+              </div>
+            </div>
+            <div className="border-t pt-4">
+              <h4 className="text-sm font-medium mb-2">Variants</h4>
+              <p className="text-sm text-muted-foreground mb-4">
+                Add variants for this product (e.g., different sizes, colors)
+              </p>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => {
+                  // In a real implementation, you would open a variant management dialog
+                  toast.info('Variant management would be implemented here')
+                }}
+              >
+                Manage Variants
+              </Button>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => {

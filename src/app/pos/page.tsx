@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -65,21 +65,46 @@ export default function POSPage() {
   const { items, discount, tax, paymentMethod, customerInfo, isScanning } = useSelector((state: RootState) => state.pos);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [products, setProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [customerSearch, setCustomerSearch] = useState('');
   const barcodeInputRef = useRef<HTMLInputElement>(null);
 
-  // Mock products data
-  const products = [
-    { id: '1', name: 'Wireless Mouse', price: 29.99, barcode: '1234567890123', stock: 45 },
-    { id: '2', name: 'USB Cable', price: 12.99, barcode: '1234567890124', stock: 8 },
-    { id: '3', name: 'Keyboard', price: 79.99, barcode: '1234567890125', stock: 23 },
-    { id: '4', name: 'Monitor', price: 299.99, barcode: '1234567890126', stock: 12 },
-    { id: '5', name: 'Laptop Stand', price: 49.99, barcode: '1234567890127', stock: 15 },
-    { id: '6', name: 'Webcam HD', price: 59.99, barcode: '1234567890128', stock: 8 },
-  ];
+  // Fetch products and customers from API
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch products
+        const productsResponse = await fetch('/api/products');
+        if (!productsResponse.ok) {
+          throw new Error('Failed to fetch products');
+        }
+        const productsData = await productsResponse.json();
+        setProducts(productsData.products);
+        
+        // Fetch customers
+        const customersResponse = await fetch('/api/customers');
+        if (!customersResponse.ok) {
+          throw new Error('Failed to fetch customers');
+        }
+        const customersData = await customersResponse.json();
+        setCustomers(customersData.customers);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.barcode.includes(searchQuery)
+    product.barcode?.includes(searchQuery)
   );
 
   const subtotal = useSelector(selectSubtotal);
@@ -94,14 +119,30 @@ export default function POSPage() {
     }));
   };
 
-  const handleBarcodeScan = (barcode: string) => {
-    const product = products.find(p => p.barcode === barcode);
-    if (product) {
-      handleAddToCart(product);
-      setSearchQuery('');
-      if (barcodeInputRef.current) {
-        barcodeInputRef.current.focus();
+  const handleBarcodeScan = async (barcode: string) => {
+    try {
+      const response = await fetch(`/api/barcode?code=${encodeURIComponent(barcode)}`);
+      if (!response.ok) {
+        throw new Error('Product not found');
       }
+      const data = await response.json();
+      const product = data.product;
+      
+      if (product) {
+        handleAddToCart({
+          id: product.id,
+          name: product.name,
+          price: product.price,
+          quantity: 1,
+        });
+        setSearchQuery('');
+        if (barcodeInputRef.current) {
+          barcodeInputRef.current.focus();
+        }
+      }
+    } catch (error) {
+      console.error('Error scanning barcode:', error);
+      alert('Product not found');
     }
   };
 
@@ -113,72 +154,100 @@ export default function POSPage() {
     }
   };
 
-  const handleCheckout = () => {
-    // Generate receipt data
-    const receiptData: ReceiptData = {
-      storeInfo: {
-        name: 'Inventory Pro Store',
-        address: '123 Main St, City, State 12345',
-        phone: '+1 (555) 123-4567',
-        email: 'store@inventorypro.com',
-      },
-      receiptInfo: {
-        invoiceNo: `INV-${Date.now()}`,
-        date: new Date().toISOString(),
-        cashier: 'Current User', // This would come from the auth state
-        paymentMethod: paymentMethod,
-      },
-      customerInfo: customerInfo.name || customerInfo.email ? customerInfo : undefined,
-      items: items.map(item => ({
-        name: item.name,
-        quantity: item.quantity,
-        unitPrice: item.price,
-        totalPrice: item.totalPrice,
-      })),
-      subtotal,
-      discount,
-      tax,
-      total,
-    };
+  const handleCheckout = async () => {
+    try {
+      // Create sale via API
+      const response = await fetch('/api/sales', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          items: items.map(item => ({
+            productId: item.productId,
+            quantity: item.quantity,
+          })),
+          paymentMethod,
+          discount,
+          customerId: (customerInfo as any).id || null,
+          notes: null,
+        }),
+      });
 
-    // Create sale object for Redux store
-    const newSale = {
-      id: Date.now().toString(),
-      invoiceNumber: receiptData.receiptInfo.invoiceNo,
-      date: new Date().toISOString(),
-      customer: customerInfo.name || 'Walk-in Customer',
-      items: items.map(item => ({
-        productId: item.productId,
-        name: item.name,
-        price: item.price,
-        quantity: item.quantity,
-        totalPrice: item.totalPrice,
-      })),
-      subtotal,
-      tax,
-      discount,
-      total,
-      paymentMethod,
-      status: 'COMPLETED' as const,
-      staff: {
-        name: 'Current User',
-        email: 'user@inventorypro.com'
-      },
-      customerInfo: customerInfo.name || customerInfo.email ? customerInfo : undefined,
-      createdAt: new Date().toISOString(),
-    };
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create sale');
+      }
 
-    // Add sale to Redux store
-    dispatch(addSale(newSale));
+      const sale = await response.json();
 
-    // Generate and download receipt
-    receiptGenerator.downloadReceipt(receiptData);
+      // Generate receipt data
+      const receiptData: ReceiptData = {
+        storeInfo: {
+          name: 'Inventory Pro Store',
+          address: '123 Main St, City, State 12345',
+          phone: '+1 (555) 123-4567',
+          email: 'store@inventorypro.com',
+        },
+        receiptInfo: {
+          invoiceNo: sale.invoiceNo,
+          date: sale.createdAt,
+          cashier: 'Current User', // This would come from the auth state
+          paymentMethod: paymentMethod,
+        },
+        customerInfo: customerInfo.name || customerInfo.email ? customerInfo : undefined,
+        items: sale.saleItems.map((item: any) => ({
+          name: item.product.name,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          totalPrice: item.totalPrice,
+        })),
+        subtotal: sale.totalAmount - sale.tax + sale.discount,
+        discount: sale.discount,
+        tax: sale.tax,
+        total: sale.finalAmount,
+      };
 
-    // Here you would typically process the payment and create the sale
-    console.log('Processing checkout:', { items, discount, tax, paymentMethod, customerInfo, total });
-    alert(`Sale completed! Total: $${total.toFixed(2)}\nReceipt downloaded successfully!`);
-    dispatch(clearCart());
-    setIsCheckoutOpen(false);
+      // Create sale object for Redux store
+      const newSale = {
+        id: sale.id,
+        invoiceNumber: sale.invoiceNo,
+        date: sale.createdAt,
+        customer: customerInfo.name || 'Walk-in Customer',
+        items: sale.saleItems.map((item: any) => ({
+          productId: item.productId,
+          name: item.product.name,
+          price: item.unitPrice,
+          quantity: item.quantity,
+          totalPrice: item.totalPrice,
+        })),
+        subtotal: sale.totalAmount - sale.tax + sale.discount,
+        tax: sale.tax,
+        discount: sale.discount,
+        total: sale.finalAmount,
+        paymentMethod: sale.paymentMethod,
+        status: sale.status,
+        staff: {
+          name: 'Current User',
+          email: 'user@inventorypro.com'
+        },
+        customerInfo: customerInfo.name || customerInfo.email ? customerInfo : undefined,
+        createdAt: sale.createdAt,
+      };
+
+      // Add sale to Redux store
+      dispatch(addSale(newSale));
+
+      // Generate and download receipt
+      receiptGenerator.downloadReceipt(receiptData);
+
+      alert(`Sale completed! Total: $${sale.finalAmount.toFixed(2)}\nReceipt downloaded successfully!`);
+      dispatch(clearCart());
+      setIsCheckoutOpen(false);
+    } catch (error) {
+      console.error('Error processing checkout:', error);
+      alert(`Error processing sale: ${(error as Error).message}`);
+    }
   };
 
   const handleGenerateReceipt = () => {
@@ -268,13 +337,49 @@ export default function POSPage() {
                     <Label htmlFor="customer" className="text-right">
                       Customer
                     </Label>
-                    <Input 
-                      id="customer" 
-                      placeholder="Customer name"
-                      value={customerInfo.name || ''}
-                      onChange={(e) => dispatch(setCustomerInfo({ name: e.target.value }))}
-                      className="col-span-3" 
-                    />
+                    <div className="col-span-3">
+                      <Input 
+                        id="customer" 
+                        placeholder="Search customer..."
+                        value={customerSearch}
+                        onChange={(e) => setCustomerSearch(e.target.value)}
+                        className="mb-2" 
+                      />
+                      {customerSearch && (
+                        <div className="border rounded-md max-h-40 overflow-y-auto">
+                          {customers
+                            .filter(customer => 
+                              customer.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
+                              customer.email.toLowerCase().includes(customerSearch.toLowerCase())
+                            )
+                            .map(customer => (
+                              <div 
+                                key={customer.id}
+                                className="p-2 hover:bg-muted cursor-pointer"
+                                onClick={() => {
+                                  dispatch(setCustomerInfo({ 
+                                    id: customer.id,
+                                    name: customer.name || '', 
+                                    email: customer.email || ''
+                                  }));
+                                  setCustomerSearch('');
+                                }}
+                              >
+                                <div className="font-medium">{customer.name}</div>
+                                <div className="text-sm text-muted-foreground">{customer.email}</div>
+                              </div>
+                            ))
+                          }
+                        </div>
+                      )}
+                      <div className="mt-2">
+                        <Input 
+                          placeholder="Customer name"
+                          value={customerInfo.name || ''}
+                          onChange={(e) => dispatch(setCustomerInfo({ name: e.target.value }))}
+                        />
+                      </div>
+                    </div>
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="email" className="text-right">

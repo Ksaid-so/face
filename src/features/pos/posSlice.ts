@@ -14,6 +14,7 @@ interface POSState {
   tax: number;
   paymentMethod: 'CASH' | 'CREDIT_CARD' | 'DEBIT_CARD' | 'MOBILE_PAYMENT' | 'BANK_TRANSFER';
   customerInfo: {
+    id?: string;
     name?: string;
     email?: string;
     phone?: string;

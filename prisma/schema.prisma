@@ -10,7 +10,7 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = env("DATABASE_URL")
+  url      = "file:./dev.db"
 }
 
 model User {
@@ -18,12 +18,14 @@ model User {
   email     String   @unique
   name      String?
   role      UserRole @default(STAFF)
+  password  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
   // Relations
   sales     Sale[]
   expenses  Expense[]
+  productHistory ProductHistory[]
   
   @@map("users")
 }
@@ -62,8 +64,13 @@ model Product {
   category    Category? @relation(fields: [categoryId], references: [id])
   saleItems   SaleItem[]
   alerts      InventoryAlert[]
+  variants    ProductVariant[]
+  history     ProductHistory[]
   
   @@map("products")
+  @@index([sku], map: "product_sku_idx")
+  @@index([barcode], map: "product_barcode_idx")
+  @@index([createdAt], map: "product_created_at_idx")
 }
 
 model Sale {
@@ -86,6 +93,7 @@ model Sale {
   saleItems  SaleItem[]
   
   @@map("sales")
+  @@index([createdAt], map: "sale_created_at_idx")
 }
 
 model SaleItem {
@@ -116,6 +124,43 @@ model InventoryAlert {
   product     Product          @relation(fields: [productId], references: [id])
   
   @@map("inventory_alerts")
+}
+
+model ProductVariant {
+  id          String   @id @default(cuid())
+  productId   String
+  name        String
+  sku         String?  @unique
+  barcode     String?  @unique
+  price       Float
+  cost        Float
+  stock       Int      @default(0)
+  imageUrl    String?
+  attributes  Json?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  product     Product  @relation(fields: [productId], references: [id])
+  
+  @@map("product_variants")
+}
+
+model ProductHistory {
+  id          String   @id @default(cuid())
+  productId   String
+  action      String
+  oldValue    String?
+  newValue    String?
+  userId      String
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  product     Product  @relation(fields: [productId], references: [id])
+  user        User     @relation(fields: [userId], references: [id])
+  
+  @@map("product_history")
 }
 
 model Expense {
@@ -172,3 +217,4 @@ enum ExpenseCategory {
   MARKETING
   OTHER
 }
+

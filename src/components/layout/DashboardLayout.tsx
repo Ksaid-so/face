@@ -16,7 +16,8 @@ import {
   BarChart3, 
   Bell,
   Home,
-  LogOut
+  LogOut,
+  FileText
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -30,6 +31,7 @@ const navigation = [
   { name: 'Inventory', href: '/inventory', icon: Package },
   { name: 'Point of Sale', href: '/pos', icon: ShoppingCart },
   { name: 'Sales', href: '/sales', icon: Receipt },
+  { name: 'Reports', href: '/reports', icon: FileText },
   { name: 'Users', href: '/users', icon: Users },
   { name: 'Expenses', href: '/expenses', icon: Receipt },
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },

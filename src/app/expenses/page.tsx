@@ -155,7 +155,7 @@ export default function ExpensesPage() {
       receiptUrl: '/receipts/maintenance-jan-2024.pdf',
       createdAt: '2024-01-18T13:20:00Z',
     },
-  ];
+  ]);
 
   const filteredExpenses = expenses.filter(expense => {
     const matchesSearch = expense.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
