@@ -86,27 +86,15 @@ Roles are defined as:
 5. **Input Validation** - Zod validation for all inputs
 6. **CSRF Protection** - Built-in NextAuth protection
 
-## Setup Instructions
-
-1. Configure environment variables in `.env`:
-   ```
-   NEXTAUTH_SECRET=your_secret_key
-   NEXTAUTH_URL=http://localhost:3000
-   ```
-
-2. Create initial admin user through the registration page or database seed
-
-3. Configure Row Level Security policies in PostgreSQL (handled automatically with Docker setup)
-
-## Extending Authentication
+## Extending the System
 
 To add new authentication providers:
-1. Add provider to `src/lib/auth.ts`
-2. Update login page to include new provider options
-3. Implement provider-specific user creation in `src/lib/boltAuth.ts`
+1. Update `src/lib/auth.ts` to include new providers
+2. Modify the BoltAuth service to handle new provider data
+3. Update UI components to support new login methods
 
 To add new roles:
-1. Add role to UserRole enum in `prisma/schema.prisma`
-2. Update role validation logic in API routes
-3. Update ProtectedRoute component
-4. Update UI to show/hide features based on role
+1. Add the role to the UserRole enum in `prisma/schema.prisma`
+2. Update the role validation logic in API routes
+3. Modify navigation and page access controls
+4. Run database migrations to update the schema

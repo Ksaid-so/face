@@ -75,80 +75,85 @@ export async function POST(request: Request) {
             }
             
             // Check if product with same SKU or barcode already exists
-            let whereClause = {}
             if (row.sku) {
-              whereClause = { sku: row.sku }
+              // Check if product exists by SKU
+              const existingProduct = await db.product.findUnique({
+                where: { sku: row.sku }
+              });
+              
+              if (existingProduct) {
+                // Update existing product
+                const product = await db.product.update({
+                  where: { id: existingProduct.id },
+                  data: {
+                    name: row.name,
+                    description: row.description || existingProduct.description,
+                    sku: row.sku || existingProduct.sku,
+                    barcode: row.barcode || existingProduct.barcode,
+                    price: row.price ? parseFloat(row.price) : existingProduct.price,
+                    cost: row.cost ? parseFloat(row.cost) : existingProduct.cost,
+                    stock: row.stock ? parseInt(row.stock) : existingProduct.stock,
+                    minStock: row.minStock ? parseInt(row.minStock) : existingProduct.minStock,
+                    maxStock: row.maxStock ? parseInt(row.maxStock) : existingProduct.maxStock,
+                    isActive: row.isActive !== 'false',
+                    categoryId: row.categoryId || existingProduct.categoryId,
+                    imageUrl: row.imageUrl || existingProduct.imageUrl
+                  }
+                });
+                results.push({ action: 'updated', product });
+                continue;
+              }
             } else if (row.barcode) {
-              whereClause = { barcode: row.barcode }
-            } else {
-              // If no SKU or barcode, create new product
-              const product = await db.product.create({
-                data: {
-                  name: row.name,
-                  description: row.description || null,
-                  sku: row.sku || null,
-                  barcode: row.barcode || null,
-                  price: parseFloat(row.price) || 0,
-                  cost: parseFloat(row.cost) || 0,
-                  stock: parseInt(row.stock) || 0,
-                  minStock: parseInt(row.minStock) || 0,
-                  maxStock: parseInt(row.maxStock) || 100,
-                  isActive: row.isActive !== 'false',
-                  categoryId: row.categoryId || null,
-                  imageUrl: row.imageUrl || null
-                }
-              })
-              results.push({ action: 'created', product })
-              continue
+              // Check if product exists by barcode
+              const existingProduct = await db.product.findUnique({
+                where: { barcode: row.barcode }
+              });
+              
+              if (existingProduct) {
+                // Update existing product
+                const product = await db.product.update({
+                  where: { id: existingProduct.id },
+                  data: {
+                    name: row.name,
+                    description: row.description || existingProduct.description,
+                    sku: row.sku || existingProduct.sku,
+                    barcode: row.barcode || existingProduct.barcode,
+                    price: row.price ? parseFloat(row.price) : existingProduct.price,
+                    cost: row.cost ? parseFloat(row.cost) : existingProduct.cost,
+                    stock: row.stock ? parseInt(row.stock) : existingProduct.stock,
+                    minStock: row.minStock ? parseInt(row.minStock) : existingProduct.minStock,
+                    maxStock: row.maxStock ? parseInt(row.maxStock) : existingProduct.maxStock,
+                    isActive: row.isActive !== 'false',
+                    categoryId: row.categoryId || existingProduct.categoryId,
+                    imageUrl: row.imageUrl || existingProduct.imageUrl
+                  }
+                });
+                results.push({ action: 'updated', product });
+                continue;
+              }
             }
             
-            // Check if product exists
-            const existingProduct = await db.product.findUnique({
-              where: whereClause
-            })
-            
-            if (existingProduct) {
-              // Update existing product
-              const product = await db.product.update({
-                where: { id: existingProduct.id },
-                data: {
-                  name: row.name,
-                  description: row.description || existingProduct.description,
-                  sku: row.sku || existingProduct.sku,
-                  barcode: row.barcode || existingProduct.barcode,
-                  price: row.price ? parseFloat(row.price) : existingProduct.price,
-                  cost: row.cost ? parseFloat(row.cost) : existingProduct.cost,
-                  stock: row.stock ? parseInt(row.stock) : existingProduct.stock,
-                  minStock: row.minStock ? parseInt(row.minStock) : existingProduct.minStock,
-                  maxStock: row.maxStock ? parseInt(row.maxStock) : existingProduct.maxStock,
-                  isActive: row.isActive !== 'false',
-                  categoryId: row.categoryId || existingProduct.categoryId,
-                  imageUrl: row.imageUrl || existingProduct.imageUrl
-                }
-              })
-              results.push({ action: 'updated', product })
-            } else {
-              // Create new product
-              const product = await db.product.create({
-                data: {
-                  name: row.name,
-                  description: row.description || null,
-                  sku: row.sku || null,
-                  barcode: row.barcode || null,
-                  price: parseFloat(row.price) || 0,
-                  cost: parseFloat(row.cost) || 0,
-                  stock: parseInt(row.stock) || 0,
-                  minStock: parseInt(row.minStock) || 0,
-                  maxStock: parseInt(row.maxStock) || 100,
-                  isActive: row.isActive !== 'false',
-                  categoryId: row.categoryId || null,
-                  imageUrl: row.imageUrl || null
-                }
-              })
-              results.push({ action: 'created', product })
-            }
-          } catch (error: any) {
-            errors.push({ row, error: error.message })
+            // If no SKU or barcode, or product doesn't exist, create new product
+            const product = await db.product.create({
+              data: {
+                name: row.name,
+                description: row.description || null,
+                sku: row.sku || null,
+                barcode: row.barcode || null,
+                price: parseFloat(row.price) || 0,
+                cost: parseFloat(row.cost) || 0,
+                stock: parseInt(row.stock) || 0,
+                minStock: parseInt(row.minStock) || 0,
+                maxStock: parseInt(row.maxStock) || 100,
+                isActive: row.isActive !== 'false',
+                categoryId: row.categoryId || null,
+                imageUrl: row.imageUrl || null
+              }
+            });
+            results.push({ action: 'created', product });
+
+          } catch (error) {
+            errors.push({ row, error: (error as Error).message })
           }
         }
         break
@@ -186,8 +191,8 @@ export async function POST(request: Request) {
               })
               results.push({ action: 'created', category })
             }
-          } catch (error: any) {
-            errors.push({ row, error: error.message })
+          } catch (error) {
+            errors.push({ row, error: (error as Error).message })
           }
         }
         break

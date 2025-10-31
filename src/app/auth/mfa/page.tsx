@@ -8,7 +8,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Icons } from '@/components/ui/icons'
 
 export default function MFASetupPage() {
   const { data: session } = useSession()
@@ -48,13 +47,10 @@ export default function MFASetupPage() {
       // For now, we'll just simulate the process
       await new Promise(resolve => setTimeout(resolve, 1000))
       
-      if (code === '123456') { // Simulated correct code
-        setSuccess(true)
-      } else {
-        setError('Invalid verification code')
-      }
+      // Simulate successful verification
+      setSuccess(true)
     } catch (err) {
-      setError('Failed to verify code')
+      setError('Invalid code')
     } finally {
       setLoading(false)
     }
@@ -67,7 +63,7 @@ export default function MFASetupPage() {
           <Card>
             <CardHeader className="space-y-1">
               <div className="flex justify-center">
-                <Icons.logo className="h-12 w-12" />
+                <div className="bg-gray-200 border-2 border-dashed rounded-xl w-12 h-12" />
               </div>
               <CardTitle className="text-center text-2xl">MFA Enabled</CardTitle>
               <CardDescription className="text-center">
@@ -81,7 +77,7 @@ export default function MFASetupPage() {
             </CardContent>
             <CardFooter>
               <Button className="w-full" onClick={() => router.push('/dashboard')}>
-                Continue to Dashboard
+                Go to Dashboard
               </Button>
             </CardFooter>
           </Card>
@@ -96,85 +92,74 @@ export default function MFASetupPage() {
         <Card>
           <CardHeader className="space-y-1">
             <div className="flex justify-center">
-              <Icons.logo className="h-12 w-12" />
+              <div className="bg-gray-200 border-2 border-dashed rounded-xl w-12 h-12" />
             </div>
-            <CardTitle className="text-center text-2xl">Multi-Factor Authentication</CardTitle>
+            <CardTitle className="text-center text-2xl">
+              {step === 'setup' ? 'Setup Multi-Factor Authentication' : 'Verify Authentication'}
+            </CardTitle>
             <CardDescription className="text-center">
               {step === 'setup' 
-                ? 'Setup two-factor authentication for enhanced security' 
-                : 'Verify your authentication app'}
+                ? 'Scan the QR code with your authenticator app' 
+                : 'Enter the code from your authenticator app'}
             </CardDescription>
           </CardHeader>
-          
-          {step === 'setup' ? (
-            <CardContent className="space-y-4">
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
+          <CardContent className="space-y-4">
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            
+            {step === 'setup' ? (
               <div className="space-y-4">
-                <p>
-                  Multi-factor authentication adds an extra layer of security to your account.
-                  Scan the QR code with your authenticator app and enter the generated code.
-                </p>
-                <div className="flex justify-center py-4">
-                  {qrCode ? (
-                    <img src={qrCode} alt="QR Code" className="h-48 w-48" />
-                  ) : (
-                    <div className="h-48 w-48 bg-gray-200 flex items-center justify-center">
-                      <Icons.spinner className="h-8 w-8 animate-spin" />
-                    </div>
-                  )}
+                <div className="flex justify-center">
+                  <div className="bg-gray-200 border-2 border-dashed rounded-xl w-48 h-48 flex items-center justify-center">
+                    {qrCode ? (
+                      <img src={qrCode} alt="QR Code" className="w-40 h-40" />
+                    ) : (
+                      <span className="text-gray-500">QR Code</span>
+                    )}
+                  </div>
                 </div>
+                <p className="text-center text-sm text-gray-500">
+                  Scan this QR code with Google Authenticator, Authy, or another TOTP app
+                </p>
               </div>
-            </CardContent>
-          ) : (
-            <CardContent className="space-y-4">
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
+            ) : (
               <div className="space-y-2">
-                <Label htmlFor="code">Verification Code</Label>
+                <Label htmlFor="code">Authentication Code</Label>
                 <Input
                   id="code"
                   type="text"
                   placeholder="Enter 6-digit code"
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
-                  maxLength={6}
+                  required
                 />
               </div>
-            </CardContent>
-          )}
-          
+            )}
+          </CardContent>
           <CardFooter className="flex flex-col space-y-4">
             {step === 'setup' ? (
               <Button className="w-full" onClick={handleSetupMFA} disabled={loading}>
                 {loading ? (
-                  <>
-                    <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
-                    Setting up...
-                  </>
-                ) : (
-                  'Setup MFA'
-                )}
+                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-solid border-white border-t-transparent" />
+                ) : null}
+                {loading ? 'Generating...' : 'Next'}
               </Button>
             ) : (
-              <Button className="w-full" onClick={handleVerifyCode} disabled={loading || code.length !== 6}>
+              <Button className="w-full" onClick={handleVerifyCode} disabled={loading}>
                 {loading ? (
-                  <>
-                    <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
-                    Verifying...
-                  </>
-                ) : (
-                  'Verify Code'
-                )}
+                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-solid border-white border-t-transparent" />
+                ) : null}
+                {loading ? 'Verifying...' : 'Verify Code'}
               </Button>
             )}
-            <Button variant="outline" onClick={() => router.push('/dashboard')}>
+            <Button 
+              variant="link" 
+              className="w-full"
+              onClick={() => router.push('/dashboard')}
+            >
               Skip for now
             </Button>
           </CardFooter>

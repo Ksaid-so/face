@@ -4,6 +4,19 @@ import { BoltAuth } from '@/lib/boltAuth'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 
+// Extend the default session types
+declare module "next-auth" {
+  interface Session {
+    user: {
+      id: string;
+      name?: string | null;
+      email?: string | null;
+      image?: string | null;
+      role?: string;
+    }
+  }
+}
+
 // GET /api/products/[productId]/variants - Get all variants for a product
 export async function GET(
   request: Request,
@@ -17,7 +30,7 @@ export async function GET(
     }
 
     // Set user context for RLS
-    await BoltAuth.setUserContext(session.user.id, session.user.role)
+    await BoltAuth.setUserContext(session.user.id || '', session.user.role || '')
 
     // Check if product exists
     const product = await db.product.findUnique({
@@ -65,7 +78,7 @@ export async function POST(
     }
 
     // Set user context for RLS
-    await BoltAuth.setUserContext(session.user.id, session.user.role)
+    await BoltAuth.setUserContext(session.user.id || '', session.user.role || '')
 
     // Check if product exists
     const product = await db.product.findUnique({

@@ -8,7 +8,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Icons } from '@/components/ui/icons'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -21,6 +20,13 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true)
     setError('')
+
+    // Simple validation
+    if (!email || !password) {
+      setError('Please enter both email and password')
+      setLoading(false)
+      return
+    }
 
     try {
       const result = await signIn('credentials', {
@@ -48,7 +54,7 @@ export default function LoginPage() {
         <Card>
           <CardHeader className="space-y-1">
             <div className="flex justify-center">
-              <Icons.logo className="h-12 w-12" />
+              <div className="bg-gray-200 border-2 border-dashed rounded-xl w-12 h-12" />
             </div>
             <CardTitle className="text-center text-2xl">Sign in to your account</CardTitle>
             <CardDescription className="text-center">
@@ -87,14 +93,19 @@ export default function LoginPage() {
             <CardFooter className="flex flex-col space-y-4">
               <Button className="w-full" type="submit" disabled={loading}>
                 {loading ? (
-                  <>
-                    <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
-                    Signing in...
-                  </>
-                ) : (
-                  'Sign in'
-                )}
+                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-solid border-white border-t-transparent" />
+                ) : null}
+                {loading ? 'Signing in...' : 'Sign in'}
               </Button>
+              <div className="text-center text-sm text-gray-500">
+                Use the following credentials to test:
+                <br />
+                Admin: admin@example.com / password
+                <br />
+                Manager: manager@example.com / password
+                <br />
+                Staff: staff@example.com / password
+              </div>
             </CardFooter>
           </form>
         </Card>

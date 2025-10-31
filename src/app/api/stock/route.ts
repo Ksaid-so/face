@@ -4,6 +4,19 @@ import { BoltAuth } from '@/lib/boltAuth'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 
+// Extend the default session types
+declare module "next-auth" {
+  interface Session {
+    user: {
+      id: string;
+      name?: string | null;
+      email?: string | null;
+      image?: string | null;
+      role?: string;
+    }
+  }
+}
+
 // PUT /api/stock - Update product stock
 export async function PUT(request: Request) {
   try {
@@ -19,7 +32,7 @@ export async function PUT(request: Request) {
     }
 
     // Set user context for RLS
-    await BoltAuth.setUserContext(session.user.id, session.user.role)
+    await BoltAuth.setUserContext(session.user.id || '', session.user.role || '')
 
     // Get request body
     const body = await request.json()
@@ -51,7 +64,7 @@ export async function PUT(request: Request) {
     })
     
     // Check if we need to generate alerts
-    let alert = null
+    let alert: any = null
     if (updatedProduct.stock <= updatedProduct.minStock) {
       // Check if alert already exists
       const existingAlert = await db.inventoryAlert.findFirst({
@@ -99,7 +112,7 @@ export async function POST(request: Request) {
     }
 
     // Set user context for RLS
-    await BoltAuth.setUserContext(session.user.id, session.user.role)
+    await BoltAuth.setUserContext(session.user.id || '', session.user.role || '')
 
     // Get request body
     const body = await request.json()
@@ -137,7 +150,7 @@ export async function POST(request: Request) {
     // For now, we'll just log it
     
     // Check if we need to generate alerts
-    let alert = null
+    let alert: any = null
     if (updatedProduct.stock <= updatedProduct.minStock) {
       // Check if alert already exists
       const existingAlert = await db.inventoryAlert.findFirst({

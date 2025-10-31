@@ -1,6 +1,6 @@
 import { NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
-import { getServerBoltAuth } from '@/lib/boltAuth'
+import { getServerBoltAuth, BoltUser } from '@/lib/boltAuth'
 
 interface UserWithRole {
   id: string;
@@ -28,26 +28,31 @@ export const authOptions: NextAuthOptions = {
         password: { label: 'Password', type: 'password' }
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
+        try {
+          if (!credentials?.email || !credentials?.password) {
+            return null
+          }
+          
+          // Authenticate user with ServerBoltAuth
+          const serverBoltAuth = await getServerBoltAuth()
+          if (!serverBoltAuth) return null
+          
+          const user = await serverBoltAuth.authenticateUser(credentials.email, credentials.password)
+          
+          if (user) {
+            return {
+              id: user.id,
+              email: user.email,
+              name: user.name,
+              role: user.role
+            }
+          }
+          
+          return null
+        } catch (error) {
+          console.error('Authentication error:', error)
           return null
         }
-        
-        // Authenticate user with ServerBoltAuth
-        const serverBoltAuth = await getServerBoltAuth()
-        if (!serverBoltAuth) return null
-        
-        const user = await serverBoltAuth.authenticateUser(credentials.email, credentials.password)
-        
-        if (user) {
-          return {
-            id: user.id,
-            email: user.email,
-            name: user.name,
-            role: user.role
-          }
-        }
-        
-        return null
       }
     })
   ],
@@ -69,13 +74,34 @@ export const authOptions: NextAuthOptions = {
   },
   pages: {
     signIn: '/auth/login',
-    signOut: '/auth/logout'
+    signOut: '/auth/login'
   },
   session: {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   secret: process.env.NEXTAUTH_SECRET,
+  events: {
+    async signIn({ user, account, profile }) {
+      // Set user context for RLS after successful sign in
+      if (user && typeof window === 'undefined') {
+        const { BoltAuth } = await import('@/lib/boltAuth')
+        const typedUser = user as { id: string; role: string };
+        await BoltAuth.setUserContext(typedUser.id, typedUser.role)
+      }
+    }
+  },
+  logger: {
+    error(code, metadata) {
+      console.error(code, metadata)
+    },
+    warn(code) {
+      console.warn(code)
+    },
+    debug(code, metadata) {
+      console.debug(code, metadata)
+    }
+  }
 }
 
 export default authOptions

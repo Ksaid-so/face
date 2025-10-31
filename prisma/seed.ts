@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client'
 import { faker } from '@faker-js/faker'
+import bcrypt from 'bcrypt'
 
 const prisma = new PrismaClient()
 
@@ -13,12 +14,16 @@ async function main() {
   await prisma.category.deleteMany()
   await prisma.user.deleteMany()
 
-  // Create users with different roles
+  // Hash the default password
+  const defaultPassword = await bcrypt.hash('password', 10)
+
+  // Create users with different roles and passwords
   const adminUser = await prisma.user.create({
     data: {
       email: 'admin@example.com',
       name: 'Admin User',
-      role: 'ADMIN'
+      role: 'ADMIN',
+      password: defaultPassword
     }
   })
 
@@ -26,7 +31,8 @@ async function main() {
     data: {
       email: 'manager@example.com',
       name: 'Manager User',
-      role: 'MANAGER'
+      role: 'MANAGER',
+      password: defaultPassword
     }
   })
 
@@ -34,7 +40,8 @@ async function main() {
     data: {
       email: 'staff@example.com',
       name: 'Staff User',
-      role: 'STAFF'
+      role: 'STAFF',
+      password: defaultPassword
     }
   })
 

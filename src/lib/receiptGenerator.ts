@@ -195,7 +195,7 @@ export class ReceiptGenerator {
     // Add footer
     this.addFooter();
 
-    return this.doc.output('arraybuffer') as Uint8Array;
+    return this.doc.output('arraybuffer') as unknown as Uint8Array;
   }
 
   downloadReceipt(data: ReceiptData, filename?: string): void {
@@ -243,7 +243,7 @@ export class ReceiptGenerator {
       heightLeft -= pageHeight;
     }
 
-    return this.doc.output('arraybuffer') as Uint8Array;
+    return this.doc.output('arraybuffer') as unknown as Uint8Array;
   }
 }
 

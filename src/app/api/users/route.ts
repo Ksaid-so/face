@@ -1,26 +1,26 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { BoltAuth } from '@/lib/boltAuth'
+import { BoltAuth, getServerBoltAuth } from '@/lib/boltAuth'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 
 interface SessionUser {
-  id: string;
-  name?: string | null;
-  email?: string | null;
-  role?: string;
+  id: string
+  name?: string
+  email?: string
+  role?: string
 }
 
 interface CustomSession {
-  user: SessionUser;
-  expires: string;
+  user: SessionUser
+  expires: string
 }
 
 // GET /api/users - Get all users
 export async function GET(request: Request) {
   try {
     // Check authentication
-    const session = (await getServerSession(authOptions)) as CustomSession | null;
+    const session = (await getServerSession(authOptions)) as CustomSession | null
     if (!session || !session.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -46,14 +46,13 @@ export async function GET(request: Request) {
           email: true,
           name: true,
           role: true,
-          createdAt: true,
-          updatedAt: true
-        },
-        orderBy: {
-          createdAt: 'desc'
+          createdAt: true
         },
         skip: (page - 1) * limit,
-        take: limit
+        take: limit,
+        orderBy: {
+          createdAt: 'desc'
+        }
       }),
       db.user.count()
     ])
@@ -77,7 +76,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     // Check authentication
-    const session = (await getServerSession(authOptions)) as CustomSession | null;
+    const session = (await getServerSession(authOptions)) as CustomSession | null
     if (!session || !session.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -92,35 +91,36 @@ export async function POST(request: Request) {
 
     // Get request body
     const body = await request.json()
-    
-    // Check if user with same email already exists
-    const existingUser = await db.user.findUnique({
-      where: {
-        email: body.email
-      }
-    })
-    
-    if (existingUser) {
-      return NextResponse.json({ error: 'User with this email already exists' }, { status: 400 })
+    const { email, name, role, password } = body
+
+    // Validate input
+    if (!email || !password) {
+      return NextResponse.json({ error: 'Email and password are required' }, { status: 400 })
     }
-    
-    // Create user
-    const user = await db.user.create({
-      data: {
-        email: body.email,
-        name: body.name,
-        role: body.role
-      },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        createdAt: true,
-        updatedAt: true
-      }
-    })
-    
+
+    // Validate role
+    if (role && !['ADMIN', 'MANAGER', 'STAFF'].includes(role)) {
+      return NextResponse.json({ error: 'Invalid role' }, { status: 400 })
+    }
+
+    // Create user with ServerBoltAuth
+    const serverBoltAuth = await getServerBoltAuth()
+    if (!serverBoltAuth) {
+      return NextResponse.json({ error: 'User creation not available' }, { status: 500 })
+    }
+
+    const user = await serverBoltAuth.createUser(
+      email, 
+      password, 
+      name, 
+      role as any || 'STAFF'
+    )
+
+    if (!user) {
+      return NextResponse.json({ error: 'Failed to create user' }, { status: 500 })
+    }
+
+    // Return created user (BoltUser doesn't include password)
     return NextResponse.json(user)
   } catch (error) {
     console.error('Error creating user:', error)

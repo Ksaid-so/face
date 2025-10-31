@@ -3,6 +3,8 @@ import { db } from '@/lib/db'
 import { BoltAuth } from '@/lib/boltAuth'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { productSchema, productUpdateSchema } from '@/lib/schemas/productSchema'
+import { handleApiError, sendErrorResponse, ApiError, UnauthorizedError, ForbiddenError, NotFoundError } from '@/lib/errorHandler'
 
 interface SessionUser {
   id: string;
@@ -22,7 +24,7 @@ export async function GET(request: Request) {
     // Check authentication
     const session = (await getServerSession(authOptions)) as CustomSession | null
     if (!session || !session.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      throw new UnauthorizedError();
     }
 
     // Set user context for RLS
@@ -78,8 +80,8 @@ export async function GET(request: Request) {
       }
     })
   } catch (error) {
-    console.error('Error fetching products:', error)
-    return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 })
+    const apiError = handleApiError(error);
+    return sendErrorResponse(apiError);
   }
 }
 
@@ -89,12 +91,12 @@ export async function POST(request: Request) {
     // Check authentication
     const session = (await getServerSession(authOptions)) as CustomSession | null
     if (!session || !session.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      throw new UnauthorizedError();
     }
 
     // Check permissions (only ADMIN and MANAGER can create products)
     if (session.user.role !== 'ADMIN' && session.user.role !== 'MANAGER') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      throw new ForbiddenError();
     }
 
     // Set user context for RLS
@@ -103,21 +105,24 @@ export async function POST(request: Request) {
     // Get request body
     const body = await request.json()
     
+    // Validate input
+    const validatedData = productSchema.parse(body);
+    
     // Create product
     const product = await db.product.create({
       data: {
-        name: body.name,
-        description: body.description,
-        sku: body.sku,
-        barcode: body.barcode,
-        price: parseFloat(body.price),
-        cost: parseFloat(body.cost),
-        stock: parseInt(body.stock),
-        minStock: parseInt(body.minStock),
-        maxStock: parseInt(body.maxStock),
-        isActive: body.isActive !== undefined ? body.isActive : true,
-        categoryId: body.categoryId,
-        imageUrl: body.imageUrl
+        name: validatedData.name,
+        description: validatedData.description,
+        sku: validatedData.sku,
+        barcode: validatedData.barcode,
+        price: validatedData.price,
+        cost: validatedData.cost,
+        stock: validatedData.stock,
+        minStock: validatedData.minStock,
+        maxStock: validatedData.maxStock,
+        isActive: validatedData.isActive !== undefined ? validatedData.isActive : true,
+        categoryId: validatedData.categoryId,
+        imageUrl: validatedData.imageUrl
       },
       include: {
         category: true
@@ -130,7 +135,7 @@ export async function POST(request: Request) {
     
     return NextResponse.json(product)
   } catch (error) {
-    console.error('Error creating product:', error)
-    return NextResponse.json({ error: 'Failed to create product' }, { status: 500 })
+    const apiError = handleApiError(error);
+    return sendErrorResponse(apiError);
   }
 }
