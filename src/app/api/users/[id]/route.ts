@@ -5,15 +5,15 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 
 interface SessionUser {
-  id: string;
-  name?: string | null;
-  email?: string | null;
-  role?: string;
+  id: string
+  name?: string | null
+  email?: string | null
+  role?: string
 }
 
 interface CustomSession {
-  user: SessionUser;
-  expires: string;
+  user: SessionUser
+  expires: string
 }
 
 // GET /api/users/[id] - Get a specific user
@@ -23,7 +23,7 @@ export async function GET(
 ) {
   try {
     // Check authentication
-    const session = (await getServerSession(authOptions)) as CustomSession | null;
+    const session = (await getServerSession(authOptions)) as CustomSession | null
     if (!session || !session.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -69,13 +69,13 @@ export async function PUT(
 ) {
   try {
     // Check authentication
-    const session = (await getServerSession(authOptions)) as CustomSession | null;
+    const session = (await getServerSession(authOptions)) as CustomSession | null
     if (!session || !session.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Check permissions (users can update themselves, ADMIN can update all)
-    if (session.user.id !== params.id && session.user.role !== 'ADMIN') {
+    // Only ADMIN users can update other users
+    if (session.user.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -84,48 +84,21 @@ export async function PUT(
 
     // Get request body
     const body = await request.json()
-    
-    // Check if user exists
-    const existingUser = await db.user.findUnique({
-      where: {
-        id: params.id
-      }
-    })
-    
-    if (!existingUser) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    const { role } = body
+
+    // Validate role
+    if (!['ADMIN', 'MANAGER', 'STAFF'].includes(role)) {
+      return NextResponse.json({ error: 'Invalid role' }, { status: 400 })
     }
-    
-    // Check if another user with same email already exists
-    if (body.email && body.email !== existingUser.email) {
-      const duplicateUser = await db.user.findUnique({
-        where: {
-          email: body.email
-        }
-      })
-      
-      if (duplicateUser) {
-        return NextResponse.json({ error: 'User with this email already exists' }, { status: 400 })
-      }
-    }
-    
-    // Prepare update data
-    const updateData: any = {
-      name: body.name,
-      updatedAt: new Date()
-    }
-    
-    // Only ADMIN can change role
-    if (session.user.role === 'ADMIN' && body.role) {
-      updateData.role = body.role
-    }
-    
+
     // Update user
-    const user = await db.user.update({
+    const updatedUser = await db.user.update({
       where: {
         id: params.id
       },
-      data: updateData,
+      data: {
+        role
+      },
       select: {
         id: true,
         email: true,
@@ -136,7 +109,7 @@ export async function PUT(
       }
     })
     
-    return NextResponse.json(user)
+    return NextResponse.json(updatedUser)
   } catch (error) {
     console.error('Error updating user:', error)
     return NextResponse.json({ error: 'Failed to update user' }, { status: 500 })
@@ -150,35 +123,24 @@ export async function DELETE(
 ) {
   try {
     // Check authentication
-    const session = (await getServerSession(authOptions)) as CustomSession | null;
+    const session = (await getServerSession(authOptions)) as CustomSession | null
     if (!session || !session.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Check permissions (only ADMIN can delete users)
+    // Only ADMIN users can delete users
     if (session.user.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    // Prevent users from deleting themselves
+    if (session.user.id === params.id) {
+      return NextResponse.json({ error: 'Cannot delete yourself' }, { status: 400 })
     }
 
     // Set user context for RLS
     await BoltAuth.setUserContext(session.user.id || '', session.user.role || '')
 
-    // Check if user exists
-    const existingUser = await db.user.findUnique({
-      where: {
-        id: params.id
-      }
-    })
-    
-    if (!existingUser) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
-    }
-    
-    // Prevent deleting yourself
-    if (session.user.id === params.id) {
-      return NextResponse.json({ error: 'Cannot delete your own account' }, { status: 400 })
-    }
-    
     // Delete user
     await db.user.delete({
       where: {
@@ -186,7 +148,7 @@ export async function DELETE(
       }
     })
     
-    return NextResponse.json({ message: 'User deleted successfully' })
+    return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Error deleting user:', error)
     return NextResponse.json({ error: 'Failed to delete user' }, { status: 500 })

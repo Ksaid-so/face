@@ -7,8 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Icons } from '@/components/ui/icons'
-import { BoltAuth } from '@/lib/boltAuth'
+import { getServerBoltAuth } from '@/lib/boltAuth'
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -32,8 +31,15 @@ export default function RegisterPage() {
     setError('')
 
     try {
-      // Create user with BoltAuth
-      const user = await BoltAuth.createUser(email, password, name)
+      // Create user with ServerBoltAuth
+      const serverBoltAuth = await getServerBoltAuth()
+      if (!serverBoltAuth) {
+        setError('Registration not available')
+        setLoading(false)
+        return
+      }
+      
+      const user = await serverBoltAuth.createUser(email, password, name)
       
       if (user) {
         setSuccess(true)
@@ -54,7 +60,7 @@ export default function RegisterPage() {
           <Card>
             <CardHeader className="space-y-1">
               <div className="flex justify-center">
-                <Icons.logo className="h-12 w-12" />
+                <div className="bg-gray-200 border-2 border-dashed rounded-xl w-12 h-12" />
               </div>
               <CardTitle className="text-center text-2xl">Account Created</CardTitle>
               <CardDescription className="text-center">
@@ -83,7 +89,7 @@ export default function RegisterPage() {
         <Card>
           <CardHeader className="space-y-1">
             <div className="flex justify-center">
-              <Icons.logo className="h-12 w-12" />
+              <div className="bg-gray-200 border-2 border-dashed rounded-xl w-12 h-12" />
             </div>
             <CardTitle className="text-center text-2xl">Create an account</CardTitle>
             <CardDescription className="text-center">
@@ -143,13 +149,9 @@ export default function RegisterPage() {
             <CardFooter className="flex flex-col space-y-4">
               <Button className="w-full" type="submit" disabled={loading}>
                 {loading ? (
-                  <>
-                    <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
-                    Creating account...
-                  </>
-                ) : (
-                  'Create Account'
-                )}
+                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-solid border-white border-t-transparent" />
+                ) : null}
+                {loading ? 'Creating account...' : 'Create Account'}
               </Button>
             </CardFooter>
           </form>

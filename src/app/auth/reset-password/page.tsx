@@ -7,51 +7,49 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Icons } from '@/components/ui/icons'
 
 export default function ResetPasswordPage() {
   const router = useRouter()
   const [email, setEmail] = useState('')
+  const [isSubmitted, setIsSubmitted] = useState(false)
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState(false)
   const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
-    setSuccess(false)
 
     try {
       // In a real implementation, you would send a password reset email
       // For now, we'll just simulate the process
       await new Promise(resolve => setTimeout(resolve, 1000))
       
-      setSuccess(true)
+      setIsSubmitted(true)
     } catch (err) {
-      setError('An unexpected error occurred')
+      setError('Failed to send reset email')
     } finally {
       setLoading(false)
     }
   }
 
-  if (success) {
+  if (isSubmitted) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8">
         <div className="w-full max-w-md space-y-8">
           <Card>
             <CardHeader className="space-y-1">
               <div className="flex justify-center">
-                <Icons.logo className="h-12 w-12" />
+                <div className="bg-gray-200 border-2 border-dashed rounded-xl w-12 h-12" />
               </div>
-              <CardTitle className="text-center text-2xl">Password Reset Email Sent</CardTitle>
+              <CardTitle className="text-center text-2xl">Check Your Email</CardTitle>
               <CardDescription className="text-center">
-                Check your email for instructions to reset your password
+                We've sent a password reset link to {email}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-center">
-                If you don't see the email, check your spam folder.
+                Click the link in the email to reset your password.
               </p>
             </CardContent>
             <CardFooter>
@@ -71,11 +69,11 @@ export default function ResetPasswordPage() {
         <Card>
           <CardHeader className="space-y-1">
             <div className="flex justify-center">
-              <Icons.logo className="h-12 w-12" />
+              <div className="bg-gray-200 border-2 border-dashed rounded-xl w-12 h-12" />
             </div>
             <CardTitle className="text-center text-2xl">Reset Password</CardTitle>
             <CardDescription className="text-center">
-              Enter your email to receive password reset instructions
+              Enter your email to receive a password reset link
             </CardDescription>
           </CardHeader>
           <form onSubmit={handleSubmit}>
@@ -100,13 +98,16 @@ export default function ResetPasswordPage() {
             <CardFooter className="flex flex-col space-y-4">
               <Button className="w-full" type="submit" disabled={loading}>
                 {loading ? (
-                  <>
-                    <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
-                    Sending...
-                  </>
-                ) : (
-                  'Send Reset Instructions'
-                )}
+                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-solid border-white border-t-transparent" />
+                ) : null}
+                {loading ? 'Sending...' : 'Send Reset Link'}
+              </Button>
+              <Button 
+                variant="link" 
+                className="w-full"
+                onClick={() => router.push('/auth/login')}
+              >
+                Back to Login
               </Button>
             </CardFooter>
           </form>

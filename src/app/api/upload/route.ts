@@ -3,6 +3,19 @@ import { BoltAuth } from '@/lib/boltAuth'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 
+// Extend the default session types
+declare module "next-auth" {
+  interface Session {
+    user: {
+      id: string;
+      name?: string | null;
+      email?: string | null;
+      image?: string | null;
+      role?: string;
+    }
+  }
+}
+
 // POST /api/upload - Upload an image
 export async function POST(request: Request) {
   try {
@@ -18,7 +31,7 @@ export async function POST(request: Request) {
     }
 
     // Set user context for RLS
-    await BoltAuth.setUserContext(session.user.id, session.user.role)
+    await BoltAuth.setUserContext(session.user.id || '', session.user.role || '')
 
     // In a real implementation, you would:
     // 1. Parse the multipart form data

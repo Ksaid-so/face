@@ -40,8 +40,7 @@ export async function GET(request: Request) {
     if (search) {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
-        { email: { contains: search, mode: 'insensitive' } },
-        { phone: { contains: search, mode: 'insensitive' } }
+        { email: { contains: search, mode: 'insensitive' } }
       ]
     }
     
@@ -53,7 +52,6 @@ export async function GET(request: Request) {
           id: true,
           name: true,
           email: true,
-          phone: true,
           createdAt: true
         },
         orderBy: {
@@ -104,14 +102,12 @@ export async function POST(request: Request) {
     const customer = await db.user.create({
       data: {
         name: body.name,
-        email: body.email,
-        phone: body.phone
+        email: body.email
       },
       select: {
         id: true,
         name: true,
         email: true,
-        phone: true,
         createdAt: true
       }
     })

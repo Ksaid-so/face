@@ -32,7 +32,6 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { 
   Search, 
   Plus, 
@@ -329,586 +328,584 @@ export default function InventoryPage() {
   };
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Inventory Management</h1>
-            <p className="text-muted-foreground">
-              Manage your products, track stock levels, and receive alerts.
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={handleExport}>
-              <Download className="h-4 w-4 mr-2" />
-              Export
-            </Button>
-            <Button variant="outline" onClick={() => router.push('/inventory/import')}>
-              <Download className="h-4 w-4 mr-2" />
-              Import
-            </Button>
-            <Button variant="outline" onClick={() => router.push('/inventory/adjust')}>
-              <Package className="h-4 w-4 mr-2" />
-              Adjust Stock
-            </Button>
-            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Product
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                  <DialogTitle>Add New Product</DialogTitle>
-                  <DialogDescription>
-                    Create a new product in your inventory.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="name" className="text-right">
-                      Name *
-                    </Label>
-                    <Input 
-                      id="name" 
-                      name="name"
-                      value={formData.name}
-                      onChange={handleInputChange}
-                      className="col-span-3" 
-                      placeholder="Product name"
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="sku" className="text-right">
-                      SKU
-                    </Label>
-                    <Input 
-                      id="sku" 
-                      name="sku"
-                      value={formData.sku}
-                      onChange={handleInputChange}
-                      className="col-span-3" 
-                      placeholder="Auto-generated"
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="barcode" className="text-right">
-                      Barcode
-                    </Label>
-                    <div className="col-span-3 flex gap-2">
-                      <Input 
-                        id="barcode" 
-                        name="barcode"
-                        value={formData.barcode}
-                        onChange={handleInputChange}
-                        placeholder="Auto-generated"
-                        className="flex-1"
-                      />
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={async () => {
-                          // Generate a random barcode
-                          const newBarcode = Math.floor(Math.random() * 1000000000000).toString().padStart(12, '0');
-                          setFormData(prev => ({ ...prev, barcode: newBarcode }));
-                        }}
-                      >
-                        Generate
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="price" className="text-right">
-                      Price *
-                    </Label>
-                    <Input 
-                      id="price" 
-                      name="price"
-                      type="number" 
-                      step="0.01"
-                      value={formData.price}
-                      onChange={handleInputChange}
-                      className="col-span-3" 
-                      placeholder="0.00"
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="cost" className="text-right">
-                      Cost
-                    </Label>
-                    <Input 
-                      id="cost" 
-                      name="cost"
-                      type="number" 
-                      step="0.01"
-                      value={formData.cost}
-                      onChange={handleInputChange}
-                      className="col-span-3" 
-                      placeholder="0.00"
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="stock" className="text-right">
-                      Stock *
-                    </Label>
-                    <Input 
-                      id="stock" 
-                      name="stock"
-                      type="number"
-                      value={formData.stock}
-                      onChange={handleInputChange}
-                      className="col-span-3" 
-                      placeholder="0"
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="minStock" className="text-right">
-                      Min Stock
-                    </Label>
-                    <Input 
-                      id="minStock" 
-                      name="minStock"
-                      type="number"
-                      value={formData.minStock}
-                      onChange={handleInputChange}
-                      className="col-span-3" 
-                      placeholder="10"
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="maxStock" className="text-right">
-                      Max Stock
-                    </Label>
-                    <Input 
-                      id="maxStock" 
-                      name="maxStock"
-                      type="number"
-                      value={formData.maxStock}
-                      onChange={handleInputChange}
-                      className="col-span-3" 
-                      placeholder="100"
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="category" className="text-right">
-                      Category
-                    </Label>
-                    <Select onValueChange={(value) => handleSelectChange('category', value)}>
-                      <SelectTrigger className="col-span-3">
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Electronics">Electronics</SelectItem>
-                        <SelectItem value="Accessories">Accessories</SelectItem>
-                        <SelectItem value="Other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="image" className="text-right">
-                      Image
-                    </Label>
-                    <Input 
-                      id="image" 
-                      name="image"
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        // Handle image upload
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          // In a real implementation, you would upload the file to a storage service
-                          // and set the imageUrl in the formData
-                          console.log('Image selected:', file.name);
-                        }
-                      }}
-                      className="col-span-3" 
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button type="submit" onClick={handleAddProduct}>
-                    Save Product
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </div>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Inventory Management</h1>
+          <p className="text-muted-foreground">
+            Manage your products, track stock levels, and receive alerts.
+          </p>
         </div>
-
-        {/* Search and Filters */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Search & Filter</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex gap-4">
-                <div className="flex-1">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search products by name, SKU, or barcode..."
-                      value={searchQuery}
-                      onChange={(e) => dispatch(setSearchQuery(e.target.value))}
-                      className="pl-10"
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleExport}>
+            <Download className="h-4 w-4 mr-2" />
+            Export
+          </Button>
+          <Button variant="outline" onClick={() => router.push('/inventory/import')}>
+            <Download className="h-4 w-4 mr-2" />
+            Import
+          </Button>
+          <Button variant="outline" onClick={() => router.push('/inventory/adjust')}>
+            <Package className="h-4 w-4 mr-2" />
+            Adjust Stock
+          </Button>
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Product
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Add New Product</DialogTitle>
+                <DialogDescription>
+                  Create a new product in your inventory.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="name" className="text-right">
+                    Name *
+                  </Label>
+                  <Input 
+                    id="name" 
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    className="col-span-3" 
+                    placeholder="Product name"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="sku" className="text-right">
+                    SKU
+                  </Label>
+                  <Input 
+                    id="sku" 
+                    name="sku"
+                    value={formData.sku}
+                    onChange={handleInputChange}
+                    className="col-span-3" 
+                    placeholder="Auto-generated"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="barcode" className="text-right">
+                    Barcode
+                  </Label>
+                  <div className="col-span-3 flex gap-2">
+                    <Input 
+                      id="barcode" 
+                      name="barcode"
+                      value={formData.barcode}
+                      onChange={handleInputChange}
+                      placeholder="Auto-generated"
+                      className="flex-1"
                     />
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={async () => {
+                        // Generate a random barcode
+                        const newBarcode = Math.floor(Math.random() * 1000000000000).toString().padStart(12, '0');
+                        setFormData(prev => ({ ...prev, barcode: newBarcode }));
+                      }}
+                    >
+                      Generate
+                    </Button>
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <Select onValueChange={(value) => dispatch(setFilters({ category: value }))}>
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Category" />
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="price" className="text-right">
+                    Price *
+                  </Label>
+                  <Input 
+                    id="price" 
+                    name="price"
+                    type="number" 
+                    step="0.01"
+                    value={formData.price}
+                    onChange={handleInputChange}
+                    className="col-span-3" 
+                    placeholder="0.00"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="cost" className="text-right">
+                    Cost
+                  </Label>
+                  <Input 
+                    id="cost" 
+                    name="cost"
+                    type="number" 
+                    step="0.01"
+                    value={formData.cost}
+                    onChange={handleInputChange}
+                    className="col-span-3" 
+                    placeholder="0.00"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="stock" className="text-right">
+                    Stock *
+                  </Label>
+                  <Input 
+                    id="stock" 
+                    name="stock"
+                    type="number"
+                    value={formData.stock}
+                    onChange={handleInputChange}
+                    className="col-span-3" 
+                    placeholder="0"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="minStock" className="text-right">
+                    Min Stock
+                  </Label>
+                  <Input 
+                    id="minStock" 
+                    name="minStock"
+                    type="number"
+                    value={formData.minStock}
+                    onChange={handleInputChange}
+                    className="col-span-3" 
+                    placeholder="10"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="maxStock" className="text-right">
+                    Max Stock
+                  </Label>
+                  <Input 
+                    id="maxStock" 
+                    name="maxStock"
+                    type="number"
+                    value={formData.maxStock}
+                    onChange={handleInputChange}
+                    className="col-span-3" 
+                    placeholder="100"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="category" className="text-right">
+                    Category
+                  </Label>
+                  <Select onValueChange={(value) => handleSelectChange('category', value)}>
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Categories</SelectItem>
                       <SelectItem value="Electronics">Electronics</SelectItem>
                       <SelectItem value="Accessories">Accessories</SelectItem>
                       <SelectItem value="Other">Other</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Button
-                    variant={filters.lowStock ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => dispatch(setFilters({ lowStock: !filters.lowStock }))}
-                  >
-                    <AlertTriangle className="h-4 w-4 mr-2" />
-                    Low Stock
-                  </Button>
-                  <Button
-                    variant={filters.outOfStock ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => dispatch(setFilters({ outOfStock: !filters.outOfStock }))}
-                  >
-                    <Package className="h-4 w-4 mr-2" />
-                    Out of Stock
-                  </Button>
                 </div>
-              </div>
-              
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant={filters.active === false ? "outline" : "default"}
-                  size="sm"
-                  onClick={() => dispatch(setFilters({ active: filters.active === false ? true : false }))}
-                >
-                  Active Only
-                </Button>
-                <Button
-                  variant={filters.priceRange === '0-50' ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => dispatch(setFilters({ priceRange: filters.priceRange === '0-50' ? undefined : '0-50' }))}
-                >
-                  Under $50
-                </Button>
-                <Button
-                  variant={filters.priceRange === '50-100' ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => dispatch(setFilters({ priceRange: filters.priceRange === '50-100' ? undefined : '50-100' }))}
-                >
-                  $50-$100
-                </Button>
-                <Button
-                  variant={filters.priceRange === '100+' ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => dispatch(setFilters({ priceRange: filters.priceRange === '100+' ? undefined : '100+' }))}
-                >
-                  Over $100
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Products Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Products ({filteredProducts.length})</CardTitle>
-            <CardDescription>
-              A list of all your products in the inventory.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Product</TableHead>
-                  <TableHead>SKU</TableHead>
-                  <TableHead>Barcode</TableHead>
-                  <TableHead>Price</TableHead>
-                  <TableHead>Stock</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredProducts.map((product) => {
-                  const stockStatus = getStockStatus(product);
-                  return (
-                    <TableRow key={product.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                            <Package className="h-5 w-5" />
-                          </div>
-                          <div>
-                            <div className="font-medium">{product.name}</div>
-                            <div className="text-sm text-muted-foreground">
-                              Cost: ${product.cost.toFixed(2)}
-                            </div>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>{product.sku}</TableCell>
-                      <TableCell className="font-mono">{product.barcode}</TableCell>
-                      <TableCell>${product.price.toFixed(2)}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <span>{product.stock}</span>
-                          {product.stock <= product.minStock && (
-                            <AlertTriangle className="h-4 w-4 text-orange-500" />
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={stockStatus.variant}>{stockStatus.status}</Badge>
-                      </TableCell>
-                      <TableCell>{product.category?.name}</TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleEditProduct(product)}>
-                              <Edit className="mr-2 h-4 w-4" />
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleDeleteProduct(product)} className="text-red-600">
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-
-        {/* Edit Product Dialog */}
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Edit Product</DialogTitle>
-              <DialogDescription>
-                Update product information.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-name" className="text-right">
-                  Name *
-                </Label>
-                <Input 
-                  id="edit-name" 
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  className="col-span-3" 
-                  placeholder="Product name"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-sku" className="text-right">
-                  SKU
-                </Label>
-                <Input 
-                  id="edit-sku" 
-                  name="sku"
-                  value={formData.sku}
-                  onChange={handleInputChange}
-                  className="col-span-3" 
-                  placeholder="SKU"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-barcode" className="text-right">
-                  Barcode
-                </Label>
-                <div className="col-span-3 flex gap-2">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="image" className="text-right">
+                    Image
+                  </Label>
                   <Input 
-                    id="edit-barcode" 
-                    name="barcode"
-                    value={formData.barcode}
-                    onChange={handleInputChange}
-                    placeholder="Barcode"
-                    className="flex-1"
-                  />
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={async () => {
-                      // Generate a random barcode
-                      const newBarcode = Math.floor(Math.random() * 1000000000000).toString().padStart(12, '0');
-                      setFormData(prev => ({ ...prev, barcode: newBarcode }));
+                    id="image" 
+                    name="image"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      // Handle image upload
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        // In a real implementation, you would upload the file to a storage service
+                        // and set the imageUrl in the formData
+                        console.log('Image selected:', file.name);
+                      }
                     }}
-                  >
-                    Generate
-                  </Button>
+                    className="col-span-3" 
+                  />
                 </div>
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-price" className="text-right">
-                  Price *
-                </Label>
-                <Input 
-                  id="edit-price" 
-                  name="price"
-                  type="number" 
-                  step="0.01"
-                  value={formData.price}
-                  onChange={handleInputChange}
-                  className="col-span-3" 
-                  placeholder="0.00"
-                />
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" onClick={handleAddProduct}>
+                  Save Product
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
+
+      {/* Search and Filters */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Search & Filter</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex gap-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search products by name, SKU, or barcode..."
+                    value={searchQuery}
+                    onChange={(e) => dispatch(setSearchQuery(e.target.value))}
+                    className="pl-10"
+                  />
+                </div>
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-cost" className="text-right">
-                  Cost
-                </Label>
-                <Input 
-                  id="edit-cost" 
-                  name="cost"
-                  type="number" 
-                  step="0.01"
-                  value={formData.cost}
-                  onChange={handleInputChange}
-                  className="col-span-3" 
-                  placeholder="0.00"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-stock" className="text-right">
-                  Stock *
-                </Label>
-                <Input 
-                  id="edit-stock" 
-                  name="stock"
-                  type="number"
-                  value={formData.stock}
-                  onChange={handleInputChange}
-                  className="col-span-3" 
-                  placeholder="0"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-minStock" className="text-right">
-                  Min Stock
-                </Label>
-                <Input 
-                  id="edit-minStock" 
-                  name="minStock"
-                  type="number"
-                  value={formData.minStock}
-                  onChange={handleInputChange}
-                  className="col-span-3" 
-                  placeholder="10"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-maxStock" className="text-right">
-                  Max Stock
-                </Label>
-                <Input 
-                  id="edit-maxStock" 
-                  name="maxStock"
-                  type="number"
-                  value={formData.maxStock}
-                  onChange={handleInputChange}
-                  className="col-span-3" 
-                  placeholder="100"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-category" className="text-right">
-                  Category
-                </Label>
-                <Select onValueChange={(value) => handleSelectChange('category', value)}>
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select category" />
+              <div className="flex gap-2">
+                <Select onValueChange={(value) => dispatch(setFilters({ category: value }))}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Category" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
                     <SelectItem value="Electronics">Electronics</SelectItem>
                     <SelectItem value="Accessories">Accessories</SelectItem>
                     <SelectItem value="Other">Other</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-image" className="text-right">
-                  Image
-                </Label>
-                <Input 
-                  id="edit-image" 
-                  name="image"
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    // Handle image upload
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      // In a real implementation, you would upload the file to a storage service
-                      // and set the imageUrl in the formData
-                      console.log('Image selected:', file.name);
-                    }
-                  }}
-                  className="col-span-3" 
-                />
+                <Button
+                  variant={filters.lowStock ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => dispatch(setFilters({ lowStock: !filters.lowStock }))}
+                >
+                  <AlertTriangle className="h-4 w-4 mr-2" />
+                  Low Stock
+                </Button>
+                <Button
+                  variant={filters.outOfStock ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => dispatch(setFilters({ outOfStock: !filters.outOfStock }))}
+                >
+                  <Package className="h-4 w-4 mr-2" />
+                  Out of Stock
+                </Button>
               </div>
             </div>
-            <div className="border-t pt-4">
-              <h4 className="text-sm font-medium mb-2">Variants</h4>
-              <p className="text-sm text-muted-foreground mb-4">
-                Add variants for this product (e.g., different sizes, colors)
-              </p>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => {
-                  // In a real implementation, you would open a variant management dialog
-                  toast.info('Variant management would be implemented here')
-                }}
+            
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant={filters.active === false ? "outline" : "default"}
+                size="sm"
+                onClick={() => dispatch(setFilters({ active: filters.active === false ? true : false }))}
               >
-                Manage Variants
+                Active Only
+              </Button>
+              <Button
+                variant={filters.priceRange === '0-50' ? "default" : "outline"}
+                size="sm"
+                onClick={() => dispatch(setFilters({ priceRange: filters.priceRange === '0-50' ? undefined : '0-50' }))}
+              >
+                Under $50
+              </Button>
+              <Button
+                variant={filters.priceRange === '50-100' ? "default" : "outline"}
+                size="sm"
+                onClick={() => dispatch(setFilters({ priceRange: filters.priceRange === '50-100' ? undefined : '50-100' }))}
+              >
+                $50-$100
+              </Button>
+              <Button
+                variant={filters.priceRange === '100+' ? "default" : "outline"}
+                size="sm"
+                onClick={() => dispatch(setFilters({ priceRange: filters.priceRange === '100+' ? undefined : '100+' }))}
+              >
+                Over $100
               </Button>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => {
-                setIsEditDialogOpen(false);
-                resetForm();
-                setSelectedProduct(null);
-              }}>
-                Cancel
-              </Button>
-              <Button type="submit" onClick={handleUpdateProduct}>
-                Update Product
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
-    </DashboardLayout>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Products Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Products ({filteredProducts.length})</CardTitle>
+          <CardDescription>
+            A list of all your products in the inventory.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Product</TableHead>
+                <TableHead>SKU</TableHead>
+                <TableHead>Barcode</TableHead>
+                <TableHead>Price</TableHead>
+                <TableHead>Stock</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredProducts.map((product) => {
+                const stockStatus = getStockStatus(product);
+                return (
+                  <TableRow key={product.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                          <Package className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <div className="font-medium">{product.name}</div>
+                          <div className="text-sm text-muted-foreground">
+                            Cost: ${product.cost.toFixed(2)}
+                          </div>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>{product.sku}</TableCell>
+                    <TableCell className="font-mono">{product.barcode}</TableCell>
+                    <TableCell>${product.price.toFixed(2)}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <span>{product.stock}</span>
+                        {product.stock <= product.minStock && (
+                          <AlertTriangle className="h-4 w-4 text-orange-500" />
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={stockStatus.variant}>{stockStatus.status}</Badge>
+                    </TableCell>
+                    <TableCell>{product.category?.name}</TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleEditProduct(product)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDeleteProduct(product)} className="text-red-600">
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Edit Product Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Edit Product</DialogTitle>
+            <DialogDescription>
+              Update product information.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-name" className="text-right">
+                Name *
+              </Label>
+              <Input 
+                id="edit-name" 
+                name="name"
+                value={formData.name}
+                onChange={handleInputChange}
+                className="col-span-3" 
+                placeholder="Product name"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-sku" className="text-right">
+                SKU
+              </Label>
+              <Input 
+                id="edit-sku" 
+                name="sku"
+                value={formData.sku}
+                onChange={handleInputChange}
+                className="col-span-3" 
+                placeholder="SKU"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-barcode" className="text-right">
+                Barcode
+              </Label>
+              <div className="col-span-3 flex gap-2">
+                <Input 
+                  id="edit-barcode" 
+                  name="barcode"
+                  value={formData.barcode}
+                  onChange={handleInputChange}
+                  placeholder="Barcode"
+                  className="flex-1"
+                />
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={async () => {
+                    // Generate a random barcode
+                    const newBarcode = Math.floor(Math.random() * 1000000000000).toString().padStart(12, '0');
+                    setFormData(prev => ({ ...prev, barcode: newBarcode }));
+                  }}
+                >
+                  Generate
+                </Button>
+              </div>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-price" className="text-right">
+                Price *
+              </Label>
+              <Input 
+                id="edit-price" 
+                name="price"
+                type="number" 
+                step="0.01"
+                value={formData.price}
+                onChange={handleInputChange}
+                className="col-span-3" 
+                placeholder="0.00"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-cost" className="text-right">
+                Cost
+              </Label>
+              <Input 
+                id="edit-cost" 
+                name="cost"
+                type="number" 
+                step="0.01"
+                value={formData.cost}
+                onChange={handleInputChange}
+                className="col-span-3" 
+                placeholder="0.00"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-stock" className="text-right">
+                Stock *
+              </Label>
+              <Input 
+                id="edit-stock" 
+                name="stock"
+                type="number"
+                value={formData.stock}
+                onChange={handleInputChange}
+                className="col-span-3" 
+                placeholder="0"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-minStock" className="text-right">
+                Min Stock
+              </Label>
+              <Input 
+                id="edit-minStock" 
+                name="minStock"
+                type="number"
+                value={formData.minStock}
+                onChange={handleInputChange}
+                className="col-span-3" 
+                placeholder="10"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-maxStock" className="text-right">
+                Max Stock
+              </Label>
+              <Input 
+                id="edit-maxStock" 
+                name="maxStock"
+                type="number"
+                value={formData.maxStock}
+                onChange={handleInputChange}
+                className="col-span-3" 
+                placeholder="100"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-category" className="text-right">
+                Category
+              </Label>
+              <Select onValueChange={(value) => handleSelectChange('category', value)}>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Electronics">Electronics</SelectItem>
+                  <SelectItem value="Accessories">Accessories</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-image" className="text-right">
+                Image
+              </Label>
+              <Input 
+                id="edit-image" 
+                name="image"
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  // Handle image upload
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    // In a real implementation, you would upload the file to a storage service
+                    // and set the imageUrl in the formData
+                    console.log('Image selected:', file.name);
+                  }
+                }}
+                className="col-span-3" 
+              />
+            </div>
+          </div>
+          <div className="border-t pt-4">
+            <h4 className="text-sm font-medium mb-2">Variants</h4>
+            <p className="text-sm text-muted-foreground mb-4">
+              Add variants for this product (e.g., different sizes, colors)
+            </p>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => {
+                // In a real implementation, you would open a variant management dialog
+                toast.info('Variant management would be implemented here')
+              }}
+            >
+              Manage Variants
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setIsEditDialogOpen(false);
+              resetForm();
+              setSelectedProduct(null);
+            }}>
+              Cancel
+            </Button>
+            <Button type="submit" onClick={handleUpdateProduct}>
+              Update Product
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

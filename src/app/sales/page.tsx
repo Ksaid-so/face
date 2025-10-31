@@ -32,7 +32,6 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { 
   Search, 
   Plus, 
@@ -168,6 +167,14 @@ export default function SalesPage() {
     }
   };
 
+  // Helper function to format dates
+  const formatDate = (date: string | Date): string => {
+    if (typeof date === 'string') {
+      return new Date(date).toLocaleDateString();
+    }
+    return date.toLocaleDateString();
+  };
+
   const handleExport = () => {
     // Create CSV content
     const headers = ['Invoice #', 'Date', 'Customer', 'Items', 'Total', 'Payment Method', 'Status', 'Staff'];
@@ -175,7 +182,7 @@ export default function SalesPage() {
       headers.join(','),
       ...filteredSales.map(sale => [
         sale.invoiceNumber,
-        sale.date.toLocaleDateString(),
+        formatDate(sale.date),
         sale.customer,
         sale.items.length,
         sale.total,
@@ -205,200 +212,198 @@ export default function SalesPage() {
   };
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Sales Management</h1>
-            <p className="text-muted-foreground">
-              View and manage all sales transactions.
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={handleExport}>
-              <Download className="h-4 w-4 mr-2" />
-              Export
-            </Button>
-            <Button onClick={() => router.push('/pos')}>
-              <Plus className="h-4 w-4 mr-2" />
-              New Sale
-            </Button>
-          </div>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Sales Management</h1>
+          <p className="text-muted-foreground">
+            View and manage all sales transactions.
+          </p>
         </div>
-
-        {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Sales</CardTitle>
-              <Receipt className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                ${displaySales.reduce((sum, sale) => sum + sale.total, 0).toFixed(2)}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                +20.1% from last month
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Transactions</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{displaySales.length}</div>
-              <p className="text-xs text-muted-foreground">
-                +12.5% from last month
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Average Sale</CardTitle>
-              <Receipt className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                ${displaySales.length > 0 ? (displaySales.reduce((sum, sale) => sum + sale.total, 0) / displaySales.length).toFixed(2) : '0.00'}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                +5.2% from last month
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pending</CardTitle>
-              <User className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {displaySales.filter(s => s.status === 'PENDING').length}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Requires attention
-              </p>
-            </CardContent>
-          </Card>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleExport}>
+            <Download className="h-4 w-4 mr-2" />
+            Export
+          </Button>
+          <Button onClick={() => router.push('/pos')}>
+            <Plus className="h-4 w-4 mr-2" />
+            New Sale
+          </Button>
         </div>
+      </div>
 
-        {/* Search and Filters */}
+      {/* Stats Cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
-          <CardHeader>
-            <CardTitle>Search & Filter</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Sales</CardTitle>
+            <Receipt className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="flex gap-4">
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search by invoice number or customer..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Select onValueChange={(value) => setFilters({ ...filters, status: value })}>
-                  <SelectTrigger className="w-[140px]">
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="COMPLETED">Completed</SelectItem>
-                    <SelectItem value="PENDING">Pending</SelectItem>
-                    <SelectItem value="REFUNDED">Refunded</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select onValueChange={(value) => setFilters({ ...filters, paymentMethod: value })}>
-                  <SelectTrigger className="w-[140px]">
-                    <SelectValue placeholder="Payment" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Methods</SelectItem>
-                    <SelectItem value="CASH">Cash</SelectItem>
-                    <SelectItem value="CARD">Card</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="text-2xl font-bold">
+              ${displaySales.reduce((sum, sale) => sum + sale.total, 0).toFixed(2)}
             </div>
+            <p className="text-xs text-muted-foreground">
+              +20.1% from last month
+            </p>
           </CardContent>
         </Card>
-
-        {/* Sales Table */}
         <Card>
-          <CardHeader>
-            <CardTitle>Sales Transactions ({filteredSales.length})</CardTitle>
-            <CardDescription>
-              A list of all sales transactions in the system.
-            </CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Transactions</CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Invoice #</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Items</TableHead>
-                  <TableHead>Total</TableHead>
-                  <TableHead>Payment</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Staff</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredSales.map((sale) => (
-                  <TableRow key={sale.id}>
-                    <TableCell className="font-medium">{sale.invoiceNumber}</TableCell>
-                    <TableCell>{sale.date.toLocaleDateString()}</TableCell>
-                    <TableCell>{sale.customer}</TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        {sale.items.length} item{sale.items.length > 1 ? 's' : ''}
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-medium">${sale.total.toFixed(2)}</TableCell>
-                    <TableCell>{getPaymentMethodBadge(sale.paymentMethod)}</TableCell>
-                    <TableCell>{getStatusBadge(sale.status)}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {sale.staff.name}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => {
-                            setSelectedSale(sale);
-                            setIsDetailDialogOpen(true);
-                          }}>
-                            <Eye className="mr-2 h-4 w-4" />
-                            View Details
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handlePrintReceipt(sale)}>
-                            <Receipt className="mr-2 h-4 w-4" />
-                            Print Receipt
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <div className="text-2xl font-bold">{displaySales.length}</div>
+            <p className="text-xs text-muted-foreground">
+              +12.5% from last month
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Average Sale</CardTitle>
+            <Receipt className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              ${displaySales.length > 0 ? (displaySales.reduce((sum, sale) => sum + sale.total, 0) / displaySales.length).toFixed(2) : '0.00'}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              +5.2% from last month
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Pending</CardTitle>
+            <User className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {displaySales.filter(s => s.status === 'PENDING').length}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Requires attention
+            </p>
           </CardContent>
         </Card>
       </div>
+
+      {/* Search and Filters */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Search & Filter</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by invoice number or customer..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Select onValueChange={(value) => setFilters({ ...filters, status: value })}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="COMPLETED">Completed</SelectItem>
+                  <SelectItem value="PENDING">Pending</SelectItem>
+                  <SelectItem value="REFUNDED">Refunded</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select onValueChange={(value) => setFilters({ ...filters, paymentMethod: value })}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="Payment" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Methods</SelectItem>
+                  <SelectItem value="CASH">Cash</SelectItem>
+                  <SelectItem value="CARD">Card</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          </CardContent>
+      </Card>
+
+      {/* Sales Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Sales Transactions ({filteredSales.length})</CardTitle>
+          <CardDescription>
+            A list of all sales transactions in the system.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Invoice #</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Customer</TableHead>
+                <TableHead>Items</TableHead>
+                <TableHead>Total</TableHead>
+                <TableHead>Payment</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Staff</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredSales.map((sale) => (
+                <TableRow key={sale.id}>
+                  <TableCell className="font-medium">{sale.invoiceNumber}</TableCell>
+                  <TableCell>{formatDate(sale.date)}</TableCell>
+                  <TableCell>{sale.customer}</TableCell>
+                  <TableCell>
+                    <div className="text-sm">
+                      {sale.items.length} item{sale.items.length > 1 ? 's' : ''}
+                    </div>
+                  </TableCell>
+                  <TableCell className="font-medium">${sale.total.toFixed(2)}</TableCell>
+                  <TableCell>{getPaymentMethodBadge(sale.paymentMethod)}</TableCell>
+                  <TableCell>{getStatusBadge(sale.status)}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {sale.staff.name}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => {
+                          setSelectedSale(sale);
+                          setIsDetailDialogOpen(true);
+                        }}>
+                          <Eye className="mr-2 h-4 w-4" />
+                          View Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handlePrintReceipt(sale)}>
+                          <Receipt className="mr-2 h-4 w-4" />
+                          Print Receipt
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
       {/* Sale Detail Dialog */}
       <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
@@ -471,6 +476,6 @@ export default function SalesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </DashboardLayout>
+    </div>
   );
 }

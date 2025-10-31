@@ -40,7 +40,6 @@ export async function GET(
         id: true,
         name: true,
         email: true,
-        phone: true,
         createdAt: true
       }
     })
@@ -97,14 +96,12 @@ export async function PUT(
       },
       data: {
         name: body.name,
-        email: body.email,
-        phone: body.phone
+        email: body.email
       },
       select: {
         id: true,
         name: true,
         email: true,
-        phone: true,
         createdAt: true
       }
     })
