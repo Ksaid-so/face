@@ -7,7 +7,7 @@ export default function SettingsLayout({
   children: React.ReactNode
 }) {
   return (
-    <ProtectedRoute requiredRole="ADMIN">
+    <ProtectedRoute>
       <DashboardLayout>
         {children}
       </DashboardLayout>
