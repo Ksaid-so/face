@@ -46,6 +46,9 @@ import {
 import { setProducts, setSearchQuery, setFilters } from '@/features/inventory/inventorySlice';
 import type { RootState } from '@/lib/store';
 import { toast } from 'sonner';
+import { CurrencyDisplay } from '@/components/ui/currency-display';
+import { ProductPriceManager } from '@/components/products/product-price-manager';
+import { Currency } from '@prisma/client';
 
 export default function InventoryPage() {
   const dispatch = useDispatch();
@@ -68,7 +71,8 @@ export default function InventoryPage() {
     minStock: '',
     maxStock: '',
     category: '',
-    isActive: true
+    isActive: true,
+    prices: [{ currency: Currency.USD, price: 0, cost: 0, isActive: true }] as Array<{ currency: Currency; price: number; cost: number; isActive: boolean }>
   });
 
   // Fetch products from API
@@ -144,7 +148,8 @@ export default function InventoryPage() {
       minStock: '',
       maxStock: '',
       category: '',
-      isActive: true
+      isActive: true,
+      prices: [{ currency: Currency.USD, price: 0, cost: 0, isActive: true }]
     });
   };
 
@@ -166,6 +171,7 @@ export default function InventoryPage() {
       maxStock: parseInt(formData.maxStock) || 100,
       isActive: formData.isActive,
       category: { name: formData.category || 'Other' },
+      prices: formData.prices
     };
 
     try {
@@ -180,11 +186,12 @@ export default function InventoryPage() {
           barcode: formData.barcode,
           price: parseFloat(formData.price),
           cost: parseFloat(formData.cost) || 0,
-        stock: parseInt(formData.stock),
+          stock: parseInt(formData.stock),
           minStock: parseInt(formData.minStock) || 10,
           maxStock: parseInt(formData.maxStock) || 100,
           isActive: formData.isActive,
           categoryId: formData.category || null,
+          prices: formData.prices
         }),
       });
 
@@ -218,7 +225,8 @@ export default function InventoryPage() {
       minStock: product.minStock.toString(),
       maxStock: product.maxStock.toString(),
       category: product.category?.name || '',
-      isActive: product.isActive
+      isActive: product.isActive,
+      prices: product.prices || [{ currency: Currency.USD, price: product.price, cost: product.cost, isActive: true }]
     });
     setIsEditDialogOpen(true);
   };
@@ -246,6 +254,7 @@ export default function InventoryPage() {
           maxStock: parseInt(formData.maxStock) || 100,
           isActive: formData.isActive,
           categoryId: formData.category || null,
+          prices: formData.prices
         }),
       });
 
@@ -357,14 +366,14 @@ export default function InventoryPage() {
                 Add Product
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[600px]">
               <DialogHeader>
                 <DialogTitle>Add New Product</DialogTitle>
                 <DialogDescription>
                   Create a new product in your inventory.
                 </DialogDescription>
               </DialogHeader>
-              <div className="grid gap-4 py-4">
+              <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto">
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="name" className="text-right">
                     Name *
@@ -416,36 +425,6 @@ export default function InventoryPage() {
                       Generate
                     </Button>
                   </div>
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="price" className="text-right">
-                    Price *
-                  </Label>
-                  <Input 
-                    id="price" 
-                    name="price"
-                    type="number" 
-                    step="0.01"
-                    value={formData.price}
-                    onChange={handleInputChange}
-                    className="col-span-3" 
-                    placeholder="0.00"
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="cost" className="text-right">
-                    Cost
-                  </Label>
-                  <Input 
-                    id="cost" 
-                    name="cost"
-                    type="number" 
-                    step="0.01"
-                    value={formData.cost}
-                    onChange={handleInputChange}
-                    className="col-span-3" 
-                    placeholder="0.00"
-                  />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="stock" className="text-right">
@@ -523,6 +502,14 @@ export default function InventoryPage() {
                       }
                     }}
                     className="col-span-3" 
+                  />
+                </div>
+                
+                {/* Multi-currency pricing section */}
+                <div className="col-span-4">
+                  <ProductPriceManager 
+                    prices={formData.prices} 
+                    onChange={(prices) => setFormData(prev => ({ ...prev, prices }))}
                   />
                 </div>
               </div>
@@ -658,14 +645,16 @@ export default function InventoryPage() {
                         <div>
                           <div className="font-medium">{product.name}</div>
                           <div className="text-sm text-muted-foreground">
-                            Cost: ${product.cost.toFixed(2)}
+                            Cost: <CurrencyDisplay amount={product.cost} />
                           </div>
                         </div>
                       </div>
                     </TableCell>
                     <TableCell>{product.sku}</TableCell>
                     <TableCell className="font-mono">{product.barcode}</TableCell>
-                    <TableCell>${product.price.toFixed(2)}</TableCell>
+                    <TableCell>
+                      <CurrencyDisplay amount={product.price} />
+                    </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <span>{product.stock}</span>
@@ -707,14 +696,14 @@ export default function InventoryPage() {
 
       {/* Edit Product Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle>Edit Product</DialogTitle>
             <DialogDescription>
               Update product information.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
+          <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto">
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="edit-name" className="text-right">
                 Name *
@@ -766,36 +755,6 @@ export default function InventoryPage() {
                   Generate
                 </Button>
               </div>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="edit-price" className="text-right">
-                Price *
-              </Label>
-              <Input 
-                id="edit-price" 
-                name="price"
-                type="number" 
-                step="0.01"
-                value={formData.price}
-                onChange={handleInputChange}
-                className="col-span-3" 
-                placeholder="0.00"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="edit-cost" className="text-right">
-                Cost
-              </Label>
-              <Input 
-                id="edit-cost" 
-                name="cost"
-                type="number" 
-                step="0.01"
-                value={formData.cost}
-                onChange={handleInputChange}
-                className="col-span-3" 
-                placeholder="0.00"
-              />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="edit-stock" className="text-right">
@@ -854,43 +813,14 @@ export default function InventoryPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="edit-image" className="text-right">
-                Image
-              </Label>
-              <Input 
-                id="edit-image" 
-                name="image"
-                type="file"
-                accept="image/*"
-                onChange={(e) => {
-                  // Handle image upload
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    // In a real implementation, you would upload the file to a storage service
-                    // and set the imageUrl in the formData
-                    console.log('Image selected:', file.name);
-                  }
-                }}
-                className="col-span-3" 
+            
+            {/* Multi-currency pricing section */}
+            <div className="col-span-4">
+              <ProductPriceManager 
+                prices={formData.prices} 
+                onChange={(prices) => setFormData(prev => ({ ...prev, prices }))}
               />
             </div>
-          </div>
-          <div className="border-t pt-4">
-            <h4 className="text-sm font-medium mb-2">Variants</h4>
-            <p className="text-sm text-muted-foreground mb-4">
-              Add variants for this product (e.g., different sizes, colors)
-            </p>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => {
-                // In a real implementation, you would open a variant management dialog
-                toast.info('Variant management would be implemented here')
-              }}
-            >
-              Manage Variants
-            </Button>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => {

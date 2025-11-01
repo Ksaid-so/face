@@ -13,6 +13,7 @@ async function main() {
   await prisma.product.deleteMany()
   await prisma.category.deleteMany()
   await prisma.user.deleteMany()
+  await prisma.businessLocation.deleteMany()
 
   // Hash the default password
   const defaultPassword = await bcrypt.hash('password', 10)
@@ -42,6 +43,24 @@ async function main() {
       name: 'Staff User',
       role: 'STAFF',
       password: defaultPassword
+    }
+  })
+
+  // Create a business location
+  const businessLocation = await prisma.businessLocation.create({
+    data: {
+      name: 'Test Business Location',
+      code: 'TEST001',
+      address: '123 Main Street',
+      city: 'New York',
+      state: 'NY',
+      postalCode: '10001',
+      country: 'United States',
+      phone: '+1 (555) 123-4567',
+      email: 'info@testbusiness.com',
+      baseCurrency: 'USD',
+      localCurrency: 'USD',
+      isActive: true,
     }
   })
 

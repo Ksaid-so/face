@@ -19,7 +19,7 @@ interface CustomSession {
 // GET /api/alerts/[id] - Get a specific alert
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Check authentication
@@ -34,7 +34,7 @@ export async function GET(
     // Get alert
     const alert = await db.inventoryAlert.findUnique({
       where: {
-        id: params.id
+        id: (await params).id
       },
       include: {
         product: {
@@ -63,7 +63,7 @@ export async function GET(
 // PUT /api/alerts/[id] - Update an alert
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Check authentication
@@ -81,7 +81,7 @@ export async function PUT(
     // Check if alert exists
     const existingAlert = await db.inventoryAlert.findUnique({
       where: {
-        id: params.id
+        id: (await params).id
       }
     })
     
@@ -92,7 +92,7 @@ export async function PUT(
     // Update alert
     const alert = await db.inventoryAlert.update({
       where: {
-        id: params.id
+        id: (await params).id
       },
       data: {
         isRead: body.isRead,
@@ -121,7 +121,7 @@ export async function PUT(
 // DELETE /api/alerts/[id] - Delete an alert
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Check authentication
@@ -141,7 +141,7 @@ export async function DELETE(
     // Check if alert exists
     const existingAlert = await db.inventoryAlert.findUnique({
       where: {
-        id: params.id
+        id: (await params).id
       }
     })
     
@@ -152,7 +152,7 @@ export async function DELETE(
     // Delete alert
     await db.inventoryAlert.delete({
       where: {
-        id: params.id
+        id: (await params).id
       }
     })
     

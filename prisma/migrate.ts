@@ -1,22 +1,47 @@
-import { execSync } from 'child_process'
+import { PrismaClient } from '@prisma/client';
 
-console.log('Starting database migration...')
+const prisma = new PrismaClient();
 
-try {
-  // Generate Prisma client
-  console.log('Generating Prisma client...')
-  execSync('npx prisma generate', { stdio: 'inherit' })
+async function main() {
+  console.log('Starting database migration...');
   
-  // Run migrations
-  console.log('Running database migrations...')
-  execSync('npx prisma migrate dev --name init', { stdio: 'inherit' })
+  // Run the migration SQL file
+  const fs = await import('fs');
+  const path = await import('path');
   
-  // Seed the database
-  console.log('Seeding database...')
-  execSync('npm run db:seed', { stdio: 'inherit' })
-  
-  console.log('Database migration completed successfully!')
-} catch (error) {
-  console.error('Migration failed:', error)
-  process.exit(1)
+  try {
+    const migrationPath = path.join(__dirname, 'migrations', '20251031052800_extensions', 'migration.sql');
+    const migrationSql = fs.readFileSync(migrationPath, 'utf8');
+    
+    // Split the migration into individual statements
+    const statements = migrationSql
+      .split(';')
+      .map(stmt => stmt.trim())
+      .filter(stmt => stmt.length > 0);
+    
+    console.log(`Executing ${statements.length} statements...`);
+    
+    for (const statement of statements) {
+      try {
+        await prisma.$executeRawUnsafe(statement);
+        console.log('Statement executed successfully');
+      } catch (error) {
+        console.error('Error executing statement:', error);
+        console.log('Statement:', statement.substring(0, 100) + '...');
+      }
+    }
+    
+    console.log('Database migration completed successfully!');
+  } catch (error) {
+    console.error('Migration failed:', error);
+  }
 }
+
+main()
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

@@ -40,7 +40,8 @@ import {
   Receipt,
   X,
   Barcode,
-  Download
+  Download,
+  Calculator
 } from 'lucide-react';
 import { receiptGenerator, type ReceiptData } from '@/lib/receiptGenerator';
 import { 
@@ -49,7 +50,7 @@ import {
   updateQuantity, 
   setDiscount, 
   setTax, 
-  setPaymentMethod, 
+  setPaymentMethod,
   setCustomerInfo,
   setScanning,
   clearCart,
@@ -58,17 +59,50 @@ import {
 } from '@/features/pos/posSlice';
 import { addSale } from '@/features/sales/salesSlice';
 import type { RootState } from '@/lib/store';
+import { useCurrency } from '@/contexts/CurrencyContext';
+import { CurrencyDisplay } from '@/components/ui/currency-display';
+
+// Mock tax rates data
+const mockTaxRates = [
+  {
+    id: '1',
+    name: 'Standard VAT',
+    rate: 20,
+    type: 'percentage',
+    category: 'General',
+    isCompound: false,
+    status: 'active'
+  },
+  {
+    id: '2',
+    name: 'Reduced VAT',
+    rate: 5,
+    type: 'percentage',
+    category: 'Food',
+    isCompound: false,
+    status: 'active'
+  }
+];
 
 export default function POSPage() {
   const dispatch = useDispatch();
   const { items, discount, tax, paymentMethod, customerInfo, isScanning } = useSelector((state: RootState) => state.pos);
+  const { baseCurrency: currency } = useCurrency();
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [customers, setCustomers] = useState<any[]>([]);
   const [customerSearch, setCustomerSearch] = useState('');
+  const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
+  const [calculatorInput, setCalculatorInput] = useState('');
+  const [selectedTaxRate, setSelectedTaxRate] = useState('1'); // Default to Standard VAT
   const barcodeInputRef = useRef<HTMLInputElement>(null);
+  const { convert, format } = useCurrency();
+
+  // Get subtotal from Redux store
+  const subtotal = useSelector(selectSubtotal);
+  const total = useSelector(selectTotal);
 
   // Fetch products and customers from API
   useEffect(() => {
@@ -101,19 +135,26 @@ export default function POSPage() {
     fetchData();
   }, []);
 
+  // Calculate tax automatically when tax rate or subtotal changes
+  useEffect(() => {
+    const selectedRate = mockTaxRates.find(rate => rate.id === selectedTaxRate);
+    if (selectedRate) {
+      const calculatedTax = subtotal * (selectedRate.rate / 100);
+      dispatch(setTax(calculatedTax));
+    }
+  }, [subtotal, selectedTaxRate, dispatch]);
+
   const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     product.barcode?.includes(searchQuery)
   );
-
-  const subtotal = useSelector(selectSubtotal);
-  const total = useSelector(selectTotal);
 
   const handleAddToCart = (product: any) => {
     dispatch(addItem({
       productId: product.id,
       name: product.name,
       price: product.price,
+      currency: currency,
       quantity: 1,
     }));
   };
@@ -168,6 +209,7 @@ export default function POSPage() {
           })),
           paymentMethod,
           discount,
+          tax, // Include calculated tax
           customerId: (customerInfo as any).id || null,
           notes: null,
         }),
@@ -240,7 +282,7 @@ export default function POSPage() {
       // Generate and download receipt
       receiptGenerator.downloadReceipt(receiptData);
 
-      alert(`Sale completed! Total: $${sale.finalAmount.toFixed(2)}\nReceipt downloaded successfully!`);
+      alert(`Sale completed! Total: ${format(total, currency)}\nReceipt downloaded successfully!`);
       dispatch(clearCart());
       setIsCheckoutOpen(false);
     } catch (error) {
@@ -279,6 +321,25 @@ export default function POSPage() {
     receiptGenerator.downloadReceipt(receiptData);
   };
 
+  // Calculator functions
+  const handleCalculatorInput = (value: string) => {
+    if (value === '=') {
+      try {
+        // eslint-disable-next-line no-eval
+        const result = eval(calculatorInput);
+        setCalculatorInput(result.toString());
+      } catch (error) {
+        setCalculatorInput('Error');
+      }
+    } else if (value === 'C') {
+      setCalculatorInput('');
+    } else if (value === '←') {
+      setCalculatorInput(prev => prev.slice(0, -1));
+    } else {
+      setCalculatorInput(prev => prev + value);
+    }
+  };
+
   const paymentMethods = [
     { value: 'CASH', label: 'Cash', icon: DollarSign },
     { value: 'CREDIT_CARD', label: 'Credit Card', icon: CreditCard },
@@ -298,6 +359,10 @@ export default function POSPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setIsCalculatorOpen(true)}>
+            <Calculator className="h-4 w-4 mr-2" />
+            Calculator
+          </Button>
           <Button variant="outline" onClick={() => dispatch(setScanning(!isScanning))}>
             <Camera className="h-4 w-4 mr-2" />
             {isScanning ? 'Stop Scanning' : 'Start Scanning'}
@@ -320,7 +385,7 @@ export default function POSPage() {
             <DialogTrigger asChild>
               <Button disabled={items.length === 0}>
                 <Receipt className="h-4 w-4 mr-2" />
-                Checkout (${total.toFixed(2)})
+                Checkout (<CurrencyDisplay amount={total} fromCurrency={currency} />)
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
@@ -424,6 +489,23 @@ export default function POSPage() {
                   />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="taxRate" className="text-right">
+                    Tax Rate
+                  </Label>
+                  <Select value={selectedTaxRate} onValueChange={setSelectedTaxRate}>
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {mockTaxRates.map((rate) => (
+                        <SelectItem key={rate.id} value={rate.id}>
+                          {rate.name} ({rate.rate}%)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="tax" className="text-right">
                     Tax
                   </Label>
@@ -432,27 +514,35 @@ export default function POSPage() {
                     type="number"
                     placeholder="0.00"
                     value={tax}
-                    onChange={(e) => dispatch(setTax(parseFloat(e.target.value) || 0))}
+                    readOnly
                     className="col-span-3" 
                   />
                 </div>
                 <Separator />
                 <div className="flex justify-between items-center">
                   <span>Subtotal:</span>
-                  <span>${subtotal.toFixed(2)}</span>
+                  <span>
+                    <CurrencyDisplay amount={subtotal} fromCurrency={currency} />
+                  </span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span>Discount:</span>
-                  <span>-${discount.toFixed(2)}</span>
+                  <span>
+                    -<CurrencyDisplay amount={discount} fromCurrency={currency} />
+                  </span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span>Tax:</span>
-                  <span>${tax.toFixed(2)}</span>
+                  <span>
+                    <CurrencyDisplay amount={tax} fromCurrency={currency} />
+                  </span>
                 </div>
                 <Separator />
                 <div className="flex justify-between items-center font-bold">
                   <span>Total:</span>
-                  <span>${total.toFixed(2)}</span>
+                  <span>
+                    <CurrencyDisplay amount={total} fromCurrency={currency} />
+                  </span>
                 </div>
               </div>
               <DialogFooter>
@@ -464,6 +554,47 @@ export default function POSPage() {
           </Dialog>
         </div>
       </div>
+
+      {/* Calculator Dialog */}
+      <Dialog open={isCalculatorOpen} onOpenChange={setIsCalculatorOpen}>
+        <DialogContent className="sm:max-w-[300px]">
+          <DialogHeader>
+            <DialogTitle>Calculator</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-2">
+            <Input 
+              value={calculatorInput} 
+              readOnly 
+              className="text-right text-xl h-12" 
+            />
+            <div className="grid grid-cols-4 gap-2">
+              <Button variant="outline" onClick={() => handleCalculatorInput('C')}>C</Button>
+              <Button variant="outline" onClick={() => handleCalculatorInput('←')}>←</Button>
+              <Button variant="outline" onClick={() => handleCalculatorInput('%')}>%</Button>
+              <Button variant="outline" onClick={() => handleCalculatorInput('/')}>/</Button>
+              
+              <Button variant="outline" onClick={() => handleCalculatorInput('7')}>7</Button>
+              <Button variant="outline" onClick={() => handleCalculatorInput('8')}>8</Button>
+              <Button variant="outline" onClick={() => handleCalculatorInput('9')}>9</Button>
+              <Button variant="outline" onClick={() => handleCalculatorInput('*')}>×</Button>
+              
+              <Button variant="outline" onClick={() => handleCalculatorInput('4')}>4</Button>
+              <Button variant="outline" onClick={() => handleCalculatorInput('5')}>5</Button>
+              <Button variant="outline" onClick={() => handleCalculatorInput('6')}>6</Button>
+              <Button variant="outline" onClick={() => handleCalculatorInput('-')}>-</Button>
+              
+              <Button variant="outline" onClick={() => handleCalculatorInput('1')}>1</Button>
+              <Button variant="outline" onClick={() => handleCalculatorInput('2')}>2</Button>
+              <Button variant="outline" onClick={() => handleCalculatorInput('3')}>3</Button>
+              <Button variant="outline" onClick={() => handleCalculatorInput('+')}>+</Button>
+              
+              <Button variant="outline" onClick={() => handleCalculatorInput('0')}>0</Button>
+              <Button variant="outline" onClick={() => handleCalculatorInput('.')}>.</Button>
+              <Button variant="outline" onClick={() => handleCalculatorInput('=')}>=</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Products Section */}
@@ -527,7 +658,9 @@ export default function POSPage() {
                         <p className="text-sm text-muted-foreground font-mono">
                           {product.barcode}
                         </p>
-                        <p className="font-semibold text-lg">${product.price.toFixed(2)}</p>
+                        <p className="font-semibold text-lg">
+                          <CurrencyDisplay amount={product.price} fromCurrency={currency} />
+                        </p>
                       </div>
                     </CardContent>
                   </Card>
@@ -561,7 +694,8 @@ export default function POSPage() {
                         <div className="flex-1">
                           <p className="font-medium">{item.name}</p>
                           <p className="text-sm text-muted-foreground">
-                            ${item.price.toFixed(2)} each
+                            <CurrencyDisplay amount={item.price} fromCurrency={item.currency} />
+                            {' '}each
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
@@ -600,20 +734,28 @@ export default function POSPage() {
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span>Subtotal:</span>
-                      <span>${subtotal.toFixed(2)}</span>
+                      <span>
+                        <CurrencyDisplay amount={subtotal} fromCurrency={currency} />
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span>Discount:</span>
-                      <span>-${discount.toFixed(2)}</span>
+                      <span>
+                        -<CurrencyDisplay amount={discount} fromCurrency={currency} />
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span>Tax:</span>
-                      <span>${tax.toFixed(2)}</span>
+                      <span>
+                        <CurrencyDisplay amount={tax} fromCurrency={currency} />
+                      </span>
                     </div>
                     <Separator />
                     <div className="flex justify-between font-bold text-lg">
                       <span>Total:</span>
-                      <span>${total.toFixed(2)}</span>
+                      <span>
+                        <CurrencyDisplay amount={total} fromCurrency={currency} />
+                      </span>
                     </div>
                   </div>
                 </div>
